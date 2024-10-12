@@ -20,7 +20,7 @@ func NewUserAPI(db *gorm.DB) UserAPI {
 // @Tags			Users
 // @Produce			json
 // @Success			200								{object}	FindResponse
-// @Router			/users		[GET]
+// @Router			/api/users		[GET]
 func (api *userApi) GetUsers(req *FindRequest) (*[]User, error) {
 	var users []User
 
