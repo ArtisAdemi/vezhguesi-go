@@ -33,6 +33,40 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/users/": {
+            "post": {
+                "description": "Validates email, username, first name, last name, password checks if email exists, if not creates new user and sends email with verification link.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Signup",
+                "parameters": [
+                    {
+                        "description": "SignupRequest",
+                        "name": "SignupRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/users.SignupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/users.SignupResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -44,6 +78,40 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/users.User"
                     }
+                }
+            }
+        },
+        "users.SignupRequest": {
+            "type": "object",
+            "properties": {
+                "confirmPassword": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "firstName": {
+                    "type": "string"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "users.SignupResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },

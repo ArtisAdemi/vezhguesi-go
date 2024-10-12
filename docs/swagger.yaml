@@ -6,6 +6,28 @@ definitions:
           $ref: '#/definitions/users.User'
         type: array
     type: object
+  users.SignupRequest:
+    properties:
+      confirmPassword:
+        type: string
+      email:
+        type: string
+      firstName:
+        type: string
+      lastName:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  users.SignupResponse:
+    properties:
+      id:
+        type: integer
+      status:
+        type: string
+    type: object
   users.User:
     properties:
       active:
@@ -46,6 +68,30 @@ paths:
           schema:
             $ref: '#/definitions/users.FindResponse'
       summary: GetUsers
+      tags:
+      - Users
+  /api/users/:
+    post:
+      consumes:
+      - application/json
+      description: Validates email, username, first name, last name, password checks
+        if email exists, if not creates new user and sends email with verification
+        link.
+      parameters:
+      - description: SignupRequest
+        in: body
+        name: SignupRequest
+        required: true
+        schema:
+          $ref: '#/definitions/users.SignupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/users.SignupResponse'
+      summary: Signup
       tags:
       - Users
 swagger: "2.0"

@@ -2,16 +2,18 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"os"
 
 	db "vezhguesi/core/db"
 	usersvc "vezhguesi/core/users"
 	_ "vezhguesi/docs" // Import the generated docs package
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/swagger"
+	"github.com/mattevans/postmark-go"
 	// http-swagger middleware
 )
 
@@ -31,6 +33,13 @@ func main() {
 		return c.SendString("Hello, World!")
 	})
 
+	
+
+	// Setup Postmark client
+	postmarkclient := postmark.NewClient()
+
+	defaultLogger := log.DefaultLogger()
+
 	apisRouter := app.Group("/api")
 
 	apisRouter.Get("/swagger/*", basicauth.New(basicauth.Config{
@@ -41,7 +50,7 @@ func main() {
 
 
 	userAPISvc := usersvc.NewUserHTTPTransport(
-		usersvc.NewUserAPI(db),
+		usersvc.NewUserAPI(db, os.Getenv("JWT_SECRET_KEY"), postmarkclient, os.Getenv("UI_APP_URL"), defaultLogger),
 	)
 
 	usersvc.RegisterRoutes(apisRouter, userAPISvc)
@@ -53,5 +62,5 @@ func main() {
 
 
 	// Start the server
-	log.Fatal(app.Listen(fmt.Sprintf(`:%d`, 8080)))
+	log.Fatal(app.Listen(fmt.Sprintf(`:%d`, 3001)))
 }
