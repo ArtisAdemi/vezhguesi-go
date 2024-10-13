@@ -13,7 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/swagger"
-	"github.com/mattevans/postmark-go"
+	"gopkg.in/gomail.v2" // Import gomail
 	// http-swagger middleware
 )
 
@@ -33,11 +33,6 @@ func main() {
 		return c.SendString("Hello, World!")
 	})
 
-	
-
-	// Setup Postmark client
-	postmarkclient := postmark.NewClient()
-
 	defaultLogger := log.DefaultLogger()
 
 	apisRouter := app.Group("/api")
@@ -48,9 +43,11 @@ func main() {
 		},
 	}), swagger.HandlerDefault)
 
+	// Pass gomail dialer to user service
+	dialer := gomail.NewDialer("smtp.gmail.com", 587, os.Getenv("EMAIL_FROM"), os.Getenv("MAIL_PASSWORD"))
 
 	userAPISvc := usersvc.NewUserHTTPTransport(
-		usersvc.NewUserAPI(db, os.Getenv("JWT_SECRET_KEY"), postmarkclient, os.Getenv("UI_APP_URL"), defaultLogger),
+		usersvc.NewUserAPI(db, os.Getenv("JWT_SECRET_KEY"), dialer, os.Getenv("UI_APP_URL"), defaultLogger),
 	)
 
 	usersvc.RegisterRoutes(apisRouter, userAPISvc)
@@ -59,7 +56,6 @@ func main() {
 	usersvc.RegisterRoutes(router, userAPISvc)
 
 	db.AutoMigrate(&usersvc.User{})
-
 
 	// Start the server
 	log.Fatal(app.Listen(fmt.Sprintf(`:%d`, 3001)))

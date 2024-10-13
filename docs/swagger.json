@@ -56,6 +56,38 @@
                     }
                 }
             }
+        },
+        "/api/users/verify-signup/{token}": {
+            "get": {
+                "description": "Validates token in param, if token parses valid then user will be verified and be updated in DB.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "VerifySignup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/users.StatusResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -101,6 +133,14 @@
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "users.StatusResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "boolean"
                 }
             }
         },

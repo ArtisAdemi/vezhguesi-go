@@ -3,6 +3,8 @@ package users
 import "github.com/gofiber/fiber/v2"
 
 func RegisterRoutes(router fiber.Router, userHttpApi UserHTTPTransport) {
-	router.Get("/users", userHttpApi.GetUsers)
-	router.Post("/users", userHttpApi.Signup)
+	userRoutes := router.Group("/users")
+	userRoutes.Get("", userHttpApi.GetUsers)
+	userRoutes.Post("", userHttpApi.Signup)
+	userRoutes.Get("/verify-signup/:token", userHttpApi.VerifySignup)
 }

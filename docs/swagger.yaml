@@ -28,6 +28,11 @@ definitions:
       status:
         type: string
     type: object
+  users.StatusResponse:
+    properties:
+      status:
+        type: boolean
+    type: object
   users.User:
     properties:
       active:
@@ -92,6 +97,28 @@ paths:
           schema:
             $ref: '#/definitions/users.SignupResponse'
       summary: Signup
+      tags:
+      - Users
+  /api/users/verify-signup/{token}:
+    get:
+      consumes:
+      - application/json
+      description: Validates token in param, if token parses valid then user will
+        be verified and be updated in DB.
+      parameters:
+      - description: Token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/users.StatusResponse'
+      summary: VerifySignup
       tags:
       - Users
 swagger: "2.0"

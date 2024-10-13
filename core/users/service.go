@@ -7,8 +7,8 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v2/log"
-	"github.com/mattevans/postmark-go"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/gomail.v2" // Import gomail
 	"gorm.io/gorm"
 
 	helper "vezhguesi/helper"
@@ -17,7 +17,7 @@ import (
 type userApi struct {
 	db *gorm.DB
 	secretKey string
-	postmarkClient *postmark.Client
+	mailDialer *gomail.Dialer // Use gomail Dialer
 	uiAppUrl string
 	logger log.AllLogger
 }
@@ -25,12 +25,12 @@ type userApi struct {
 type UserAPI interface{
 	GetUsers(req *FindRequest) (*[]User, error)
 	Signup(req *SignupRequest) (*SignupResponse, error)
+	VerifySignup(req *SignupVerifyRequest) (*StatusResponse, error)
 }
 
-func NewUserAPI(db *gorm.DB, secretKey string, pmc *postmark.Client, uiAppUrl string, logger log.AllLogger) UserAPI {
-	return &userApi{db: db, secretKey: secretKey, postmarkClient: pmc, uiAppUrl: uiAppUrl, logger: logger}
+func NewUserAPI(db *gorm.DB, secretKey string, dialer *gomail.Dialer, uiAppUrl string, logger log.AllLogger) UserAPI {
+	return &userApi{db: db, secretKey: secretKey, mailDialer: dialer, uiAppUrl: uiAppUrl, logger: logger}
 }
-
 
 // @Summary      	GetUsers
 // @Description	
@@ -126,26 +126,68 @@ func (s *userApi) Signup(req *SignupRequest) (*SignupResponse, error) {
 	s.db.Model(User{Email: req.Email}).First(&user)
 
 
-	verifyLink := s.uiAppUrl + "/verify-signup/" +t
+	verifyLink := s.uiAppUrl + "/verify-signup/" + t
 
-	emailMsg := &postmark.Email{
-        From: "info@vezhguesi.com",
-        To: req.Email,
-        Subject: "Verify your email",
-		HTMLBody: fmt.Sprintf("Click on the link to verify your email: <a href=\"%s\">Click here</a>", verifyLink),
-	}
+	m := gomail.NewMessage()
+	m.SetHeader("From", "info@vezhguesi.com")
+	m.SetHeader("To", req.Email)
+	m.SetHeader("Subject", "Verify your email")
+	m.SetBody("text/html", fmt.Sprintf("Click on the link to verify your email: <a href=\"%s\">Click here</a>", verifyLink))
 
-	_, _, err = s.postmarkClient.Email.Send(emailMsg)
-	if err != nil {
-		s.logger.Errorf("func: Signup, operation: s.postmarkClient.Email.Send(emailMsg), err: %s", err.Error())
-		fmt.Errorf("failed to send email")
+	if err := s.mailDialer.DialAndSend(m); err != nil {
+		s.logger.Errorf("func: Signup, operation: s.mailDialer.DialAndSend(m), err: %s", err.Error())
+		return nil, fmt.Errorf("failed to send email")
 	}
 
 	return &SignupResponse{
-       ID: user.ID,
-	   Status: "pending",
+		ID: user.ID,
+		Status: "pending",
 	}, nil
-
-
 }
 
+// @Summary      	VerifySignup
+// @Description	Validates token in param, if token parses valid then user will be verified and be updated in DB.
+// @Tags			Users
+// @Accept			json
+// @Produce			json
+// @Param			token				path		string			true	"Token"
+// @Success			200					{object}	StatusResponse
+// @Router			/api/users/verify-signup/{token}	[GET]
+func (s *userApi) VerifySignup(req *SignupVerifyRequest) (res *StatusResponse, err error) {
+	req.Token = strings.TrimSpace(req.Token)
+	
+	if req.Token == "" {
+		return nil, fmt.Errorf("token is required")
+	}
+
+	//  Parse and validate token expiration
+	claims := jwt.MapClaims{}
+	_, err = jwt.ParseWithClaims(req.Token, claims, func(token *jwt.Token) (interface{}, error){
+		return []byte(s.secretKey), nil
+	})
+	if err != nil {
+		s.logger.Errorf("func: VerifySignup, operation: jwt.ParseWithClaims(req.Token, claims, func(token *jwt.Token) (interface{}, error){return []byte(s.secretKey), nil}), err: %s", err.Error())
+		return nil, fmt.Errorf("invalid token")
+	}
+
+	email := fmt.Sprintf("%v", claims["email"])
+
+	// find user by email
+	var user User
+	s.db.Where("email = ?", email).First(&user)
+	if user.ID == 0 {
+		return nil, helper.ErrNotFound
+	}
+
+	user.VerifiedEmail = true
+	user.Active = true
+	result := s.db.Save(&user)
+	if result.Error != nil {
+		s.logger.Errorf("func: VerifySignup, operation: s.db.Save(&user), err: %s", result.Error.Error())
+		return nil, result.Error
+	}
+
+	return &StatusResponse{
+		Status: true,
+	}, nil
+}
