@@ -27,11 +27,19 @@ func ConnectDB() (*gorm.DB, error) {
 		}
 	}
 
-	dbhost := os.Getenv("DB_HOST")
-	dbport := getEnvAsInt("DB_PORT", 5432)
-	dbuser := os.Getenv("DB_USERNAME")
-	dbpassword := os.Getenv("DB_PASSWORD")
-	dbname := os.Getenv("DB_NAME")
+	dbhost :="aws-0-eu-central-1.pooler.supabase.com"
+	dbport := 6543
+	dbuser := "postgres.ndlncbadozimymlhaeyw"
+	dbpassword := "AsllanPireva69!Nice"
+	dbname := "postgres"
+
+	if os.Getenv("ENV") != "production" {
+		dbhost = os.Getenv("DB_HOST")
+		dbport = getEnvAsInt("DB_PORT", 5432)
+		dbuser = os.Getenv("DB_USERNAME")
+		dbpassword = os.Getenv("DB_PASSWORD")
+		dbname = os.Getenv("DB_NAME")
+	}
 
 	// Adjust sslmode as needed
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=require TimeZone=Asia/Jakarta", dbhost, dbuser, dbpassword, dbname, dbport)
