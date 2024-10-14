@@ -19,9 +19,12 @@ func getEnvAsInt(name string, defaultVal int) int {
 }
 
 func ConnectDB() (*gorm.DB, error) {
-	err := godotenv.Load()
-	if err != nil {
-		fmt.Print("Error loading .env file")
+	// Load .env file only in development
+	if os.Getenv("ENV") != "production" {
+		err := godotenv.Load()
+		if err != nil {
+			fmt.Print("Error loading .env file")
+		}
 	}
 
 	dbhost := os.Getenv("DB_HOST")
