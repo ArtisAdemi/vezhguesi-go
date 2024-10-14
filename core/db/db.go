@@ -33,13 +33,6 @@ func ConnectDB() (*gorm.DB, error) {
 	dbpassword := "AsllanPireva69!Nice"
 	dbname := "postgres"
 
-	if os.Getenv("ENV") != "production" {
-		dbhost = os.Getenv("DB_HOST")
-		dbport = getEnvAsInt("DB_PORT", 5432)
-		dbuser = os.Getenv("DB_USERNAME")
-		dbpassword = os.Getenv("DB_PASSWORD")
-		dbname = os.Getenv("DB_NAME")
-	}
 
 	// Adjust sslmode as needed
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=require TimeZone=Asia/Jakarta", dbhost, dbuser, dbpassword, dbname, dbport)
