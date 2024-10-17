@@ -7,8 +7,8 @@ import (
 	"vezhguesi/core/users"
 	"vezhguesi/helper"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v2/log"
+	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gomail.v2"
 	"gorm.io/gorm"

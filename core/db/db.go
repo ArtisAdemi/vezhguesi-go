@@ -9,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func getEnvAsInt(name string, defaultVal int) int {
@@ -40,7 +41,7 @@ func ConnectDB() (*gorm.DB, error) {
 
 	// Open the database connection
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		PrepareStmt: true, // Enable prepared statement caching
+		Logger: logger.Default.LogMode(logger.Info), // Enable detailed logging
 	})
 	if err != nil {
 		fmt.Printf("Failed to connect to database: %v\n", err)

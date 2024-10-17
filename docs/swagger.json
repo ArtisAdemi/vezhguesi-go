@@ -104,6 +104,47 @@
                 }
             }
         },
+        "/api/reports/": {
+            "post": {
+                "description": "Validates subject, start date, end date. Creates a new report.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Create Report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization Key (e.g Bearer key)",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "CreateReportRequest",
+                        "name": "CreateReportRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/reports.CreateReportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/reports.ReportResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/users": {
             "get": {
                 "produces": [
@@ -253,6 +294,78 @@
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "reports.CreateReportRequest": {
+            "type": "object",
+            "properties": {
+                "end_date": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "reports.Report": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "endDate": {
+                    "type": "string"
+                },
+                "entities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "findings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "reportText": {
+                    "type": "string"
+                },
+                "sentiment": {
+                    "type": "integer"
+                },
+                "sourceID": {
+                    "type": "integer"
+                },
+                "startDate": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "reports.ReportResponse": {
+            "type": "object",
+            "properties": {
+                "report": {
+                    "$ref": "#/definitions/reports.Report"
                 }
             }
         },
