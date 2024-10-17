@@ -1,12 +1,5 @@
 definitions:
-  users.FindResponse:
-    properties:
-      users:
-        items:
-          $ref: '#/definitions/users.User'
-        type: array
-    type: object
-  users.SignupRequest:
+  auth.SignupRequest:
     properties:
       confirmPassword:
         type: string
@@ -21,17 +14,24 @@ definitions:
       username:
         type: string
     type: object
-  users.SignupResponse:
+  auth.SignupResponse:
     properties:
       id:
         type: integer
       status:
         type: string
     type: object
-  users.StatusResponse:
+  auth.StatusResponse:
     properties:
       status:
         type: boolean
+    type: object
+  users.FindResponse:
+    properties:
+      users:
+        items:
+          $ref: '#/definitions/users.User'
+        type: array
     type: object
   users.User:
     properties:
@@ -63,19 +63,7 @@ definitions:
 info:
   contact: {}
 paths:
-  /api/users:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/users.FindResponse'
-      summary: GetUsers
-      tags:
-      - Users
-  /api/users/:
+  /api/auth/:
     post:
       consumes:
       - application/json
@@ -88,18 +76,18 @@ paths:
         name: SignupRequest
         required: true
         schema:
-          $ref: '#/definitions/users.SignupRequest'
+          $ref: '#/definitions/auth.SignupRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/users.SignupResponse'
+            $ref: '#/definitions/auth.SignupResponse'
       summary: Signup
       tags:
-      - Users
-  /api/users/verify-signup/{token}:
+      - Auth
+  /api/auth/verify-signup/{token}:
     get:
       consumes:
       - application/json
@@ -117,8 +105,20 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/users.StatusResponse'
+            $ref: '#/definitions/auth.StatusResponse'
       summary: VerifySignup
+      tags:
+      - Auth
+  /api/users:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/users.FindResponse'
+      summary: GetUsers
       tags:
       - Users
 swagger: "2.0"

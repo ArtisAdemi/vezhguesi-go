@@ -15,6 +15,72 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/auth/": {
+            "post": {
+                "description": "Validates email, username, first name, last name, password checks if email exists, if not creates new user and sends email with verification link.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Signup",
+                "parameters": [
+                    {
+                        "description": "SignupRequest",
+                        "name": "SignupRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.SignupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.SignupResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/verify-signup/{token}": {
+            "get": {
+                "description": "Validates token in param, if token parses valid then user will be verified and be updated in DB.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "VerifySignup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.StatusResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/users": {
             "get": {
                 "produces": [
@@ -33,87 +99,10 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/api/users/": {
-            "post": {
-                "description": "Validates email, username, first name, last name, password checks if email exists, if not creates new user and sends email with verification link.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Users"
-                ],
-                "summary": "Signup",
-                "parameters": [
-                    {
-                        "description": "SignupRequest",
-                        "name": "SignupRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/users.SignupRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/users.SignupResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/users/verify-signup/{token}": {
-            "get": {
-                "description": "Validates token in param, if token parses valid then user will be verified and be updated in DB.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Users"
-                ],
-                "summary": "VerifySignup",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Token",
-                        "name": "token",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/users.StatusResponse"
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
-        "users.FindResponse": {
-            "type": "object",
-            "properties": {
-                "users": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/users.User"
-                    }
-                }
-            }
-        },
-        "users.SignupRequest": {
+        "auth.SignupRequest": {
             "type": "object",
             "properties": {
                 "confirmPassword": {
@@ -136,7 +125,7 @@ const docTemplate = `{
                 }
             }
         },
-        "users.SignupResponse": {
+        "auth.SignupResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -147,11 +136,22 @@ const docTemplate = `{
                 }
             }
         },
-        "users.StatusResponse": {
+        "auth.StatusResponse": {
             "type": "object",
             "properties": {
                 "status": {
                     "type": "boolean"
+                }
+            }
+        },
+        "users.FindResponse": {
+            "type": "object",
+            "properties": {
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/users.User"
+                    }
                 }
             }
         },

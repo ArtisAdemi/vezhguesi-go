@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -33,13 +34,27 @@ func ConnectDB() (*gorm.DB, error) {
 	dbpassword := os.Getenv("DB_PASSWORD")
 	dbname := os.Getenv("DB_NAME")
 
-	// Adjust sslmode as needed
+	fmt.Printf("Connecting to DB at %s:%d with user %s\n", dbhost, dbport, dbuser)
+
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=require TimeZone=Asia/Jakarta", dbhost, dbuser, dbpassword, dbname, dbport)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// Open the database connection
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		PrepareStmt: true, // Enable prepared statement caching
+	})
+	if err != nil {
+		fmt.Printf("Failed to connect to database: %v\n", err)
+		return nil, err
+	}
+
+	// Set connection pool settings
+	sqlDB, err := db.DB()
 	if err != nil {
 		return nil, err
 	}
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	return db, nil
 }

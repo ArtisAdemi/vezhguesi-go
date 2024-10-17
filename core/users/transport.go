@@ -4,8 +4,6 @@ import "github.com/gofiber/fiber/v2"
 
 type UserHTTPTransport interface {
 	GetUsers(c *fiber.Ctx) error
-	Signup(c *fiber.Ctx) error
-	VerifySignup(c *fiber.Ctx) error
 }
 
 type userHttpTransport struct {
@@ -31,29 +29,4 @@ func (s *userHttpTransport) GetUsers(c *fiber.Ctx) error {
 	return c.JSON(resp)
 }
 
-func (s *userHttpTransport) Signup(c *fiber.Ctx) error {
-	req := &SignupRequest{}
-	if err := c.BodyParser(req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	resp, err := s.userAPI.Signup(req)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	return c.JSON(resp)
-}
-
-func (s *userHttpTransport) VerifySignup(c *fiber.Ctx) error {
-	req := &SignupVerifyRequest{}
-
-	req.Token = c.Params("token")
-	resp, err := s.userAPI.VerifySignup(req)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	return c.JSON(resp)
-}
 

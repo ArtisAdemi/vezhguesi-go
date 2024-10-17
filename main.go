@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	authsvc "vezhguesi/core/authentication/auth"
 	db "vezhguesi/core/db"
 	usersvc "vezhguesi/core/users"
 	_ "vezhguesi/docs" // Import the generated docs package
@@ -46,14 +47,19 @@ func main() {
 	// Pass gomail dialer to user service
 	dialer := gomail.NewDialer("smtp.gmail.com", 587, os.Getenv("EMAIL_FROM"), os.Getenv("MAIL_PASSWORD"))
 
+	// API Services
 	userAPISvc := usersvc.NewUserHTTPTransport(
 		usersvc.NewUserAPI(db, os.Getenv("JWT_SECRET_KEY"), dialer, os.Getenv("UI_APP_URL"), defaultLogger),
 	)
+	authApiSvc := authsvc.NewAuthHTTPTransport(
+		authsvc.NewAuthApi(db, os.Getenv("JWT_SECRET_KEY"), dialer, os.Getenv("UI_APP_URL"), defaultLogger),
+	)
+	
 
+	// Register Routes
 	usersvc.RegisterRoutes(apisRouter, userAPISvc)
+	authsvc.RegisterRoutes(apisRouter, authApiSvc)
 
-	router := fiber.New()
-	usersvc.RegisterRoutes(router, userAPISvc)
 
 	db.AutoMigrate(&usersvc.User{})
 
