@@ -40,7 +40,7 @@ func ConnectDB() (*gorm.DB, error) {
 
 	// Open the database connection
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		PrepareStmt: true, // Enable prepared statement caching
+		PrepareStmt: false, // Disable prepared statement caching
 	})
 	if err != nil {
 		fmt.Printf("Failed to connect to database: %v\n", err)
