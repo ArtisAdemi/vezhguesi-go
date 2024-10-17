@@ -75,3 +75,15 @@ type FindRequest struct {
 type FindResponse struct {
 	Users []User `json:"users"`
 }
+
+type FindByIDResponse struct {
+	ID int `json:"id"`
+	FirstName string `json:"firstName"`
+	LastName string `json:"lastName"`
+	Username string `json:"username"`
+	Email string `json:"email"`
+	Status string `json:"status"`
+	AvatarImgKey string `json:"avatarImgUrl"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}

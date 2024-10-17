@@ -49,6 +49,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/auth/login": {
+            "post": {
+                "description": "Validates email and password in request, check if user exists in DB if not throw 404 otherwise compare the request password with hash, then check if user is active, then finds relationships of user with orgs and then generates a JWT token, and returns UserData, Orgs, and Token in response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login",
+                "parameters": [
+                    {
+                        "description": "LoginRequest",
+                        "name": "LoginRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.LoginResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/auth/verify-signup/{token}": {
             "get": {
                 "description": "Validates token in param, if token parses valid then user will be verified and be updated in DB.",
@@ -94,7 +128,45 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/users.FindResponse"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/users.UserResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/users/{userId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "GetUserByID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization Key (e.g Bearer key)",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/users.FindByIDResponse"
                         }
                     }
                 }
@@ -102,6 +174,28 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "auth.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                },
+                "userData": {
+                    "$ref": "#/definitions/auth.UserData"
+                }
+            }
+        },
         "auth.SignupRequest": {
             "type": "object",
             "properties": {
@@ -144,27 +238,10 @@ const docTemplate = `{
                 }
             }
         },
-        "users.FindResponse": {
+        "auth.UserData": {
             "type": "object",
             "properties": {
-                "users": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/users.User"
-                    }
-                }
-            }
-        },
-        "users.User": {
-            "type": "object",
-            "properties": {
-                "active": {
-                    "type": "boolean"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "deletedAt": {
+                "avatarImgUrl": {
                     "type": "string"
                 },
                 "email": {
@@ -179,10 +256,39 @@ const docTemplate = `{
                 "lastName": {
                     "type": "string"
                 },
-                "password": {
+                "profileId": {
+                    "type": "integer"
+                },
+                "role": {
                     "type": "string"
                 },
-                "phone": {
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "users.FindByIDResponse": {
+            "type": "object",
+            "properties": {
+                "avatarImgUrl": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "firstName": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 },
                 "updatedAt": {
@@ -190,9 +296,38 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "users.UserResponse": {
+            "type": "object",
+            "properties": {
+                "avatarImgUrl": {
+                    "type": "string"
                 },
-                "verifiedEmail": {
-                    "type": "boolean"
+                "createdAt": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "firstName": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         }
