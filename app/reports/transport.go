@@ -1,6 +1,8 @@
 package reports
 
 import (
+	"fmt"
+	"strconv"
 	"vezhguesi/core/middleware"
 	"vezhguesi/helper"
 
@@ -9,6 +11,9 @@ import (
 
 type ReportsHTTPTransport interface {
 	Create(c *fiber.Ctx) error
+	GetReports(c *fiber.Ctx) error
+	GetReportByID(c *fiber.Ctx) error
+	UpdateReport(c *fiber.Ctx) error
 }
 
 type reportsHttpTransport struct {
@@ -39,3 +44,75 @@ func (s *reportsHttpTransport) Create(c *fiber.Ctx) error {
 
 	return c.JSON(resp)
 }
+
+func (s *reportsHttpTransport) GetReports(c *fiber.Ctx) error {
+	req := &GetReportsRequest{}
+	userId, err := middleware.CtxUserID(c)
+	if err != nil {
+		return helper.HTTPError(c, err, "GetReports.middleware.CtxUserID")
+	}
+	req.UserID = userId
+
+	resp, err := s.reportsAPI.GetReports(req)
+	if err != nil {
+		return helper.HTTPError(c, err, "GetReports.reportsAPI.GetReports")
+	}
+
+	return c.JSON(resp)
+}
+
+func (s *reportsHttpTransport) GetReportByID(c *fiber.Ctx) error {
+	req := &IDRequest{}
+	userId, err := middleware.CtxUserID(c)
+	if err != nil {
+		return helper.HTTPError(c, err, "GetReportByID.middleware.CtxUserID")
+	}
+	req.UserID = userId
+	reportIdStr := c.Params("id")
+	if reportIdStr == "" {
+		return helper.HTTPError(c, fmt.Errorf("id is required"), "GetReportByID.c.Params")
+	}
+	reportId, err := strconv.Atoi(reportIdStr)
+	if err != nil {
+		return helper.HTTPError(c, err, "GetReportByID.strconv.Atoi")
+	}
+	req.ID = reportId
+
+	resp, err := s.reportsAPI.GetReportByID(req)
+	if err != nil {
+		return helper.HTTPError(c, err, "GetReportByID.reportsAPI.GetReportByID")
+	}
+
+	return c.JSON(resp)
+}
+
+func (s *reportsHttpTransport) UpdateReport(c *fiber.Ctx) error {
+	req := &UpdateReportRequest{}
+	userId, err := middleware.CtxUserID(c)
+	if err != nil {
+		return helper.HTTPError(c, err, "UpdateReport.middleware.CtxUserID")
+	}
+	req.UserID = userId
+	reportIdStr := c.Params("id")
+	if reportIdStr == "" {
+		return helper.HTTPError(c, fmt.Errorf("id is required"), "UpdateReport.c.Params")
+	}
+	reportId, err := strconv.Atoi(reportIdStr)
+	if err != nil {
+		return helper.HTTPError(c, err, "UpdateReport.strconv.Atoi")
+	}
+	req.ID = reportId
+
+	if err := c.BodyParser(req); err != nil {
+		return helper.HTTPError(c, err, "UpdateReport.c.BodyParser")
+	}
+
+	resp, err := s.reportsAPI.UpdateReport(req)
+	if err != nil {
+		return helper.HTTPError(c, err, "UpdateReport.reportsAPI.UpdateReport")
+	}
+	
+	return c.JSON(resp)
+	
+}
+

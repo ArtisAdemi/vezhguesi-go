@@ -3,7 +3,7 @@ package reports
 import "time"
 
 type Report struct {
-	ID          string    `gorm:"primaryKey"`
+	ID          uint    `gorm:"primaryKey"`
 	Title       string    `gorm:"not null"`
 	Subject     string    `gorm:"not null"`
 	ReportText  string   
