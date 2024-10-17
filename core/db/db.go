@@ -9,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func getEnvAsInt(name string, defaultVal int) int {
@@ -36,11 +37,15 @@ func ConnectDB() (*gorm.DB, error) {
 
 	fmt.Printf("Connecting to DB at %s:%d with user %s\n", dbhost, dbport, dbuser)
 
+	// Use pgx as the driver
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=require TimeZone=Asia/Jakarta", dbhost, dbuser, dbpassword, dbname, dbport)
 
-	// Open the database connection
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		PrepareStmt: false, // Disable prepared statement caching
+	// Open the database connection using postgres with pgx
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true, // disables implicit prepared statement usage
+	}), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info), // Enable detailed logging
 	})
 	if err != nil {
 		fmt.Printf("Failed to connect to database: %v\n", err)

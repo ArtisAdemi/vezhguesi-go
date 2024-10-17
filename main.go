@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	reportsvc "vezhguesi/app/reports"
 	authsvc "vezhguesi/core/authentication/auth"
 	db "vezhguesi/core/db"
 	"vezhguesi/core/middleware"
@@ -35,7 +36,13 @@ func main() {
 	app := fiber.New(fiber.Config{
 		BodyLimit: 20 * 1024 * 1024, // 20 MB in bytes
 	})
-	app.Use(cors.New())
+
+	// Configure CORS
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*", // Change this to specific domains in production
+		AllowMethods: "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}))
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello, World!")
@@ -63,14 +70,25 @@ func main() {
 	authApiSvc := authsvc.NewAuthHTTPTransport(
 		authsvc.NewAuthApi(db, os.Getenv("JWT_SECRET_KEY"), dialer, os.Getenv("UI_APP_URL"), defaultLogger),
 	)
+	reportApiSvc := reportsvc.NewReportsHTTPTransport(
+		reportsvc.NewReportsAPI(db, dialer, os.Getenv("UI_APP_URL"), defaultLogger),
+	)
 	
 
 	// Register Routes
 	usersvc.RegisterRoutes(apisRouter, userAPISvc, authMiddleware)
 	authsvc.RegisterRoutes(apisRouter, authApiSvc)
+	reportsvc.RegisterRoutes(apisRouter, reportApiSvc, authMiddleware)
 
+	// Auto Migrate Core
+	db.AutoMigrate(
+		&usersvc.User{},
+	)
 
-	db.AutoMigrate(&usersvc.User{})
+	// Auto Migrate App
+	db.AutoMigrate(
+		&reportsvc.Report{},
+	)
 
 	// Start the server
 	log.Fatal(app.Listen(fmt.Sprintf(`:%d`, 3001)))

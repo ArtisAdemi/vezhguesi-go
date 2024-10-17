@@ -115,6 +115,162 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/reports/": {
+            "get": {
+                "description": "Validates user id. Gets all reports",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Get Reports",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization Key (e.g Bearer key)",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/reports.ReportsResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Validates subject, start date, end date. Creates a new report.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Create Report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization Key (e.g Bearer key)",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "CreateReportRequest",
+                        "name": "CreateReportRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/reports.CreateReportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/reports.ReportResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reports/{id}": {
+            "get": {
+                "description": "Validates id and user id. Gets report by id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Get Report By ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization Key (e.g Bearer key)",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Report ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/reports.ReportsResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Validates id and user id. Updates report",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Update Report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization Key (e.g Bearer key)",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Report ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "UpdateReportRequest",
+                        "name": "UpdateReportRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/reports.UpdateReportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/reports.ReportResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/users": {
             "get": {
                 "produces": [
@@ -263,6 +419,109 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "reports.CreateReportRequest": {
+            "type": "object",
+            "properties": {
+                "endDate": {
+                    "type": "string"
+                },
+                "startDate": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                }
+            }
+        },
+        "reports.Report": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "endDate": {
+                    "type": "string"
+                },
+                "entities": {
+                    "type": "string"
+                },
+                "findings": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "reportText": {
+                    "type": "string"
+                },
+                "sentiment": {
+                    "type": "integer"
+                },
+                "sourceID": {
+                    "type": "integer"
+                },
+                "startDate": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "reports.ReportResponse": {
+            "type": "object",
+            "properties": {
+                "report": {
+                    "$ref": "#/definitions/reports.Report"
+                },
+                "userId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "reports.ReportsResponse": {
+            "type": "object",
+            "properties": {
+                "reports": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/reports.Report"
+                    }
+                }
+            }
+        },
+        "reports.UpdateReportRequest": {
+            "type": "object",
+            "properties": {
+                "entities": {
+                    "type": "string"
+                },
+                "findings": {
+                    "type": "string"
+                },
+                "reportText": {
+                    "type": "string"
+                },
+                "sentiment": {
+                    "type": "integer"
+                },
+                "sourceId": {
+                    "type": "integer"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }

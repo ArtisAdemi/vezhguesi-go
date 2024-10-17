@@ -59,6 +59,73 @@ definitions:
       username:
         type: string
     type: object
+  reports.CreateReportRequest:
+    properties:
+      endDate:
+        type: string
+      startDate:
+        type: string
+      subject:
+        type: string
+    type: object
+  reports.Report:
+    properties:
+      createdAt:
+        type: string
+      endDate:
+        type: string
+      entities:
+        type: string
+      findings:
+        type: string
+      id:
+        type: integer
+      reportText:
+        type: string
+      sentiment:
+        type: integer
+      sourceID:
+        type: integer
+      startDate:
+        type: string
+      subject:
+        type: string
+      title:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  reports.ReportResponse:
+    properties:
+      report:
+        $ref: '#/definitions/reports.Report'
+      userId:
+        type: integer
+    type: object
+  reports.ReportsResponse:
+    properties:
+      reports:
+        items:
+          $ref: '#/definitions/reports.Report'
+        type: array
+    type: object
+  reports.UpdateReportRequest:
+    properties:
+      entities:
+        type: string
+      findings:
+        type: string
+      reportText:
+        type: string
+      sentiment:
+        type: integer
+      sourceId:
+        type: integer
+      subject:
+        type: string
+      title:
+        type: string
+    type: object
   users.FindByIDResponse:
     properties:
       avatarImgUrl:
@@ -175,6 +242,110 @@ paths:
       summary: VerifySignup
       tags:
       - Auth
+  /api/reports/:
+    get:
+      consumes:
+      - application/json
+      description: Validates user id. Gets all reports
+      parameters:
+      - description: Authorization Key (e.g Bearer key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/reports.ReportsResponse'
+      summary: Get Reports
+      tags:
+      - Reports
+    post:
+      consumes:
+      - application/json
+      description: Validates subject, start date, end date. Creates a new report.
+      parameters:
+      - description: Authorization Key (e.g Bearer key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: CreateReportRequest
+        in: body
+        name: CreateReportRequest
+        required: true
+        schema:
+          $ref: '#/definitions/reports.CreateReportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/reports.ReportResponse'
+      summary: Create Report
+      tags:
+      - Reports
+  /api/reports/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Validates id and user id. Gets report by id
+      parameters:
+      - description: Authorization Key (e.g Bearer key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Report ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/reports.ReportsResponse'
+      summary: Get Report By ID
+      tags:
+      - Reports
+    put:
+      consumes:
+      - application/json
+      description: Validates id and user id. Updates report
+      parameters:
+      - description: Authorization Key (e.g Bearer key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Report ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: UpdateReportRequest
+        in: body
+        name: UpdateReportRequest
+        required: true
+        schema:
+          $ref: '#/definitions/reports.UpdateReportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/reports.ReportResponse'
+      summary: Update Report
+      tags:
+      - Reports
   /api/users:
     get:
       produces:
