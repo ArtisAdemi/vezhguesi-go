@@ -1,4 +1,18 @@
 definitions:
+  auth.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  auth.LoginResponse:
+    properties:
+      token:
+        type: string
+      userData:
+        $ref: '#/definitions/auth.UserData'
+    type: object
   auth.SignupRequest:
     properties:
       confirmPassword:
@@ -26,20 +40,9 @@ definitions:
       status:
         type: boolean
     type: object
-  users.FindResponse:
+  auth.UserData:
     properties:
-      users:
-        items:
-          $ref: '#/definitions/users.User'
-        type: array
-    type: object
-  users.User:
-    properties:
-      active:
-        type: boolean
-      createdAt:
-        type: string
-      deletedAt:
+      avatarImgUrl:
         type: string
       email:
         type: string
@@ -49,16 +52,54 @@ definitions:
         type: integer
       lastName:
         type: string
-      password:
+      profileId:
+        type: integer
+      role:
         type: string
-      phone:
+      username:
+        type: string
+    type: object
+  users.FindByIDResponse:
+    properties:
+      avatarImgUrl:
+        type: string
+      createdAt:
+        type: string
+      email:
+        type: string
+      firstName:
+        type: string
+      id:
+        type: integer
+      lastName:
+        type: string
+      status:
         type: string
       updatedAt:
         type: string
       username:
         type: string
-      verifiedEmail:
-        type: boolean
+    type: object
+  users.UserResponse:
+    properties:
+      avatarImgUrl:
+        type: string
+      createdAt:
+        type: string
+      email:
+        type: string
+      firstName:
+        type: string
+      id:
+        type: integer
+      lastName:
+        type: string
+      status:
+        type: string
+      updatedAt:
+        type: string
+      username:
+        type: string
     type: object
 info:
   contact: {}
@@ -85,6 +126,31 @@ paths:
           schema:
             $ref: '#/definitions/auth.SignupResponse'
       summary: Signup
+      tags:
+      - Auth
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Validates email and password in request, check if user exists in
+        DB if not throw 404 otherwise compare the request password with hash, then
+        check if user is active, then finds relationships of user with orgs and then
+        generates a JWT token, and returns UserData, Orgs, and Token in response.
+      parameters:
+      - description: LoginRequest
+        in: body
+        name: LoginRequest
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.LoginResponse'
+      summary: Login
       tags:
       - Auth
   /api/auth/verify-signup/{token}:
@@ -117,8 +183,33 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/users.FindResponse'
+            items:
+              $ref: '#/definitions/users.UserResponse'
+            type: array
       summary: GetUsers
+      tags:
+      - Users
+  /api/users/{userId}:
+    get:
+      parameters:
+      - description: Authorization Key (e.g Bearer key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/users.FindByIDResponse'
+      summary: GetUserByID
       tags:
       - Users
 swagger: "2.0"

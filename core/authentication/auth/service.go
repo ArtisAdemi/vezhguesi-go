@@ -25,6 +25,7 @@ type authApi struct {
 type AuthApi interface{
 	Signup(req *SignupRequest) (*SignupResponse, error)
 	VerifySignup(req *SignupVerifyRequest) (*StatusResponse, error)
+	Login(req *LoginRequest) (*LoginResponse, error)
 }
 
 func NewAuthApi(db *gorm.DB, secretKey string, dialer *gomail.Dialer, uiAppUrl string, logger log.AllLogger) AuthApi {
@@ -172,5 +173,70 @@ func (s *authApi) VerifySignup(req *SignupVerifyRequest) (res *StatusResponse, e
 
 	return &StatusResponse{
 		Status: true,
+	}, nil
+}
+
+// @Summary      	Login
+// @Description		Validates email and password in request, check if user exists in DB if not throw 404 otherwise compare the request password with hash, then check if user is active, then finds relationships of user with orgs and then generates a JWT token, and returns UserData, Orgs, and Token in response.
+// @Tags			Auth
+// @Accept			json
+// @Produce			json
+// @Param			LoginRequest	body		LoginRequest	true	"LoginRequest"
+// @Success			200				{object}	LoginResponse
+// @Router			/api/auth/login			[POST]
+func (s *authApi) Login(req *LoginRequest) (res *LoginResponse, err error) {
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	req.Password = strings.TrimSpace(req.Password)
+
+	if req.Email == "" || req.Password == "" {
+		return nil, fmt.Errorf("email and password are required")
+	}
+
+	if !helper.ValidEmail(req.Email) {
+		return nil, fmt.Errorf("invalid email")
+	}
+
+	var user users.User
+	s.db.Where("email = ?", req.Email).First(&user)
+	if user.ID == 0 {
+		fmt.Println("err", "email not found")
+		return nil, helper.ErrNotFound
+	}
+	fmt.Println("user", user)
+
+	if !user.VerifiedEmail {
+		return nil, fmt.Errorf("email not verified")
+	}
+
+	if !user.Active {
+		return nil, fmt.Errorf("user is not active")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		return nil, helper.ErrNotFound
+	}
+
+	// Generate JWT Token with expiration
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+	claims["userId"] = user.ID
+	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+
+	t, err := token.SignedString([]byte(s.secretKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token")
+	}
+	
+	userData := UserData{
+		ID: user.ID,
+		Email: user.Email,
+		Username: *user.Username,
+		FirstName: user.FirstName,
+		LastName: user.LastName,
+	}
+	
+	return &LoginResponse{
+		UserData: &userData,
+		Token: t,
 	}, nil
 }

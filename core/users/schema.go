@@ -13,6 +13,8 @@ type User struct {
 	Password      string
 	FirstName     string
 	LastName      string
+	Status        string
+	AvatarImgKey  string
 	Active        bool
 	Phone         string
 	VerifiedEmail bool

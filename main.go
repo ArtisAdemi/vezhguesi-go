@@ -6,6 +6,7 @@ import (
 
 	authsvc "vezhguesi/core/authentication/auth"
 	db "vezhguesi/core/db"
+	"vezhguesi/core/middleware"
 	usersvc "vezhguesi/core/users"
 	_ "vezhguesi/docs" // Import the generated docs package
 
@@ -24,6 +25,12 @@ func main() {
 		fmt.Println("Error connecting to database:", err)
 		return
 	}
+	defer func() {
+		sqlDB, err := db.DB()
+		if err == nil {
+			sqlDB.Close()
+		}
+	}()
 
 	app := fiber.New(fiber.Config{
 		BodyLimit: 20 * 1024 * 1024, // 20 MB in bytes
@@ -46,7 +53,9 @@ func main() {
 
 	// Pass gomail dialer to user service
 	dialer := gomail.NewDialer("smtp.gmail.com", 587, os.Getenv("EMAIL_FROM"), os.Getenv("MAIL_PASSWORD"))
+	
 
+	authMiddleware := middleware.Authentication(os.Getenv("JWT_SECRET_KEY"))
 	// API Services
 	userAPISvc := usersvc.NewUserHTTPTransport(
 		usersvc.NewUserAPI(db, os.Getenv("JWT_SECRET_KEY"), dialer, os.Getenv("UI_APP_URL"), defaultLogger),
@@ -57,7 +66,7 @@ func main() {
 	
 
 	// Register Routes
-	usersvc.RegisterRoutes(apisRouter, userAPISvc)
+	usersvc.RegisterRoutes(apisRouter, userAPISvc, authMiddleware)
 	authsvc.RegisterRoutes(apisRouter, authApiSvc)
 
 
