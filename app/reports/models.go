@@ -1,6 +1,8 @@
 package reports
 
-import "time"
+import (
+	"time"
+)
 
 type CreateReportRequest struct {
 	UserID    int       `json:"-"`
@@ -33,8 +35,13 @@ type UpdateReportRequest struct {
 	Title string `json:"title"`
 	Subject string `json:"subject"`
 	ReportText string `json:"reportText"`
-	Entities string `json:"entities"`
+	Entities []ReportEntity `json:"entities"`
 	SourceID int `json:"sourceId"`
 	Findings string `json:"findings"`
 	Sentiment int `json:"sentiment"`
+}
+
+type ReportEntity struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
 }

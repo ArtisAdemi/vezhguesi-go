@@ -1,13 +1,16 @@
 package reports
 
-import "time"
+import (
+	"time"
+	"vezhguesi/app/entities" // Import the entities package
+)
 
 type Report struct {
-	ID          uint    `gorm:"primaryKey"`
-	Title       string    `gorm:"not null"`
-	Subject     string    `gorm:"not null"`
+	ID          uint              `gorm:"primaryKey"`
+	Title       string            `gorm:"not null"`
+	Subject     string            `gorm:"not null"`
 	ReportText  string   
-	Entities    string
+	Entities    []entities.Entity `gorm:"many2many:report_entities;"` // Updated to use a many-to-many relationship
 	SourceID    int
 	Findings    string
 	Sentiment   int 

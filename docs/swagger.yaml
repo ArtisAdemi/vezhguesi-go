@@ -59,6 +59,35 @@ definitions:
       username:
         type: string
     type: object
+  entities.CreateEntityRequest:
+    properties:
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  entities.Entity:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      type:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  entities.EntityResponse:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      type:
+        type: string
+    type: object
   reports.CreateReportRequest:
     properties:
       endDate:
@@ -75,7 +104,10 @@ definitions:
       endDate:
         type: string
       entities:
-        type: string
+        description: Updated to use a many-to-many relationship
+        items:
+          $ref: '#/definitions/entities.Entity'
+        type: array
       findings:
         type: string
       id:
@@ -95,6 +127,13 @@ definitions:
       updatedAt:
         type: string
     type: object
+  reports.ReportEntity:
+    properties:
+      name:
+        type: string
+      type:
+        type: string
+    type: object
   reports.ReportResponse:
     properties:
       report:
@@ -112,7 +151,9 @@ definitions:
   reports.UpdateReportRequest:
     properties:
       entities:
-        type: string
+        items:
+          $ref: '#/definitions/reports.ReportEntity'
+        type: array
       findings:
         type: string
       reportText:
@@ -242,6 +283,52 @@ paths:
       summary: VerifySignup
       tags:
       - Auth
+  /api/entities/:
+    post:
+      consumes:
+      - application/json
+      description: Validates name, type. Creates a new entity.
+      parameters:
+      - description: CreateEntityRequest
+        in: body
+        name: CreateEntityRequest
+        required: true
+        schema:
+          $ref: '#/definitions/entities.CreateEntityRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entities.EntityResponse'
+      summary: Create Entity
+      tags:
+      - Entities
+  /api/entities/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Validates name, type. Creates a new entity.
+      parameters:
+      - description: ID
+        in: path
+        name: id
+        type: integer
+      - description: Name
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entities.EntityResponse'
+      summary: Get Entity
+      tags:
+      - Entities
   /api/reports/:
     get:
       consumes:

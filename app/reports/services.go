@@ -2,6 +2,7 @@ package reports
 
 import (
 	"fmt"
+	"vezhguesi/app/entities"
 
 	"github.com/gofiber/fiber/v2/log"
 	"gopkg.in/gomail.v2"
@@ -13,6 +14,7 @@ type reportsApi struct {
 	mailDialer *gomail.Dialer
 	uiAppUrl string
 	logger log.AllLogger
+	entitiesApi entities.EntitiesAPI
 }
 
 type ReportsAPI interface {
@@ -22,8 +24,8 @@ type ReportsAPI interface {
 	UpdateReport(req *UpdateReportRequest) (res *ReportResponse, err error)
 }
 
-func NewReportsAPI(db *gorm.DB, mailDialer *gomail.Dialer, uiAppUrl string, logger log.AllLogger) ReportsAPI {
-	return &reportsApi{db: db, mailDialer: mailDialer, uiAppUrl: uiAppUrl, logger: logger}
+func NewReportsAPI(db *gorm.DB, mailDialer *gomail.Dialer, uiAppUrl string, logger log.AllLogger, entitiesApi entities.EntitiesAPI) ReportsAPI {
+	return &reportsApi{db: db, mailDialer: mailDialer, uiAppUrl: uiAppUrl, logger: logger, entitiesApi: entitiesApi}
 }
 
 // @Summary      	Create Report
@@ -81,9 +83,9 @@ func (s *reportsApi) GetReports(req *GetReportsRequest) (res *[]ReportsResponse,
 	}
 
 	var reports []Report
-	err = s.db.Find(&reports).Error
-	if err != nil {
-		return nil, err
+	result := s.db.Preload("Entities").Find(&reports)
+	if result.Error != nil {
+		return nil, result.Error
 	}
 
 	var response []ReportsResponse
@@ -151,7 +153,7 @@ func (s *reportsApi) UpdateReport(req *UpdateReportRequest) (res *ReportResponse
 
 	result := s.db.Where("id = ?", req.ID).First(&report)
 	if result.Error != nil {
-		return nil, fmt.Errorf("report does not exits")
+		return nil, fmt.Errorf("report does not exist")
 	}
 
 	if req.Title != "" {
@@ -166,10 +168,6 @@ func (s *reportsApi) UpdateReport(req *UpdateReportRequest) (res *ReportResponse
 		report.ReportText = req.ReportText
 	}
 
-	if req.Entities != "" {
-		report.Entities = req.Entities
-	}
-
 	if req.SourceID != 0 {
 		report.SourceID = req.SourceID
 	}
@@ -178,11 +176,49 @@ func (s *reportsApi) UpdateReport(req *UpdateReportRequest) (res *ReportResponse
 		report.Findings = req.Findings
 	}
 
+	if len(req.Entities) > 0 {
+		var entitiesList []entities.Entity
+		for _, entity := range req.Entities {
+			requestForEntity := entities.GetEntityRequest{
+				Name: entity.Name,
+			}
+			
+			resp, err := s.entitiesApi.GetEntity(&requestForEntity)
+			if err != nil {
+				 fmt.Println("Entity not found")
+			}
+			if entity.Name != "" {
+				newEntity := entities.CreateEntityRequest{
+					Name: entity.Name,
+					Type: entity.Type,
+				}
+
+				resp, err := s.entitiesApi.Create(&newEntity)
+				if err != nil {
+					return nil, fmt.Errorf("error creating entity: %v", err)
+				}
+				createdEntity := entities.Entity{
+					ID: resp.ID,
+					Name: resp.Name,
+					Type: resp.Type,
+				}
+				entitiesList = append(entitiesList, createdEntity)
+			} else {
+				entitiesList = append(entitiesList, entities.Entity{
+					ID:   resp.ID,
+					Name: resp.Name,
+					Type: resp.Type,
+				})
+			}
+		}
+		report.Entities = entitiesList
+	}
+
 	report.Sentiment = req.Sentiment
 
 	result = s.db.Save(&report)
 	if result.Error != nil {
-		return nil, fmt.Errorf("err", result.Error)
+		return nil, fmt.Errorf("error updating report: %v", result.Error)
 	}
 
 	resp := ReportResponse{

@@ -115,6 +115,77 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/entities/": {
+            "post": {
+                "description": "Validates name, type. Creates a new entity.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Entities"
+                ],
+                "summary": "Create Entity",
+                "parameters": [
+                    {
+                        "description": "CreateEntityRequest",
+                        "name": "CreateEntityRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/entities.CreateEntityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/entities.EntityResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/entities/{id}": {
+            "get": {
+                "description": "Validates name, type. Creates a new entity.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Entities"
+                ],
+                "summary": "Get Entity",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID",
+                        "name": "id",
+                        "in": "path"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name",
+                        "name": "name",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/entities.EntityResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/reports/": {
             "get": {
                 "description": "Validates user id. Gets all reports",
@@ -423,6 +494,51 @@ const docTemplate = `{
                 }
             }
         },
+        "entities.CreateEntityRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "entities.Entity": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "entities.EntityResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "reports.CreateReportRequest": {
             "type": "object",
             "properties": {
@@ -447,7 +563,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "entities": {
-                    "type": "string"
+                    "description": "Updated to use a many-to-many relationship",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/entities.Entity"
+                    }
                 },
                 "findings": {
                     "type": "string"
@@ -478,6 +598,17 @@ const docTemplate = `{
                 }
             }
         },
+        "reports.ReportEntity": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "reports.ReportResponse": {
             "type": "object",
             "properties": {
@@ -504,7 +635,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "entities": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/reports.ReportEntity"
+                    }
                 },
                 "findings": {
                     "type": "string"

@@ -29,11 +29,24 @@ func ConnectDB() (*gorm.DB, error) {
 		}
 	}
 
-	dbhost := os.Getenv("DB_HOST")
-	dbport := getEnvAsInt("DB_PORT", 5432)
-	dbuser := os.Getenv("DB_USERNAME")
-	dbpassword := os.Getenv("DB_PASSWORD")
-	dbname := os.Getenv("DB_NAME")
+	var dbhost, dbuser, dbpassword, dbname string
+	var dbport int
+
+	// Determine which database configuration to use based on the ENV variable
+	switch os.Getenv("ENV") {
+	case "test":
+		dbhost = os.Getenv("TEST_DB_HOST")
+		dbport = getEnvAsInt("TEST_DB_PORT", 5432)
+		dbuser = os.Getenv("TEST_DB_USERNAME")
+		dbpassword = os.Getenv("TEST_DB_PASSWORD")
+		dbname = os.Getenv("TEST_DB_NAME")
+	default:
+		dbhost = os.Getenv("DB_HOST")
+		dbport = getEnvAsInt("DB_PORT", 5432)
+		dbuser = os.Getenv("DB_USERNAME")
+		dbpassword = os.Getenv("DB_PASSWORD")
+		dbname = os.Getenv("DB_NAME")
+	}
 
 	fmt.Printf("Connecting to DB at %s:%d with user %s\n", dbhost, dbport, dbuser)
 
