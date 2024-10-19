@@ -26,6 +26,17 @@ type StatusResponse struct {
 	Status bool `json:"status"`
 }
 
+type UserData struct {
+	ID           int    `json:"id"`
+	ProfileID    int    `json:"profileId"`
+	Email        string `json:"email"`
+	Username     string `json:"username"`
+	Role         string `json:"role"`
+	FirstName    string `json:"firstName"`
+	LastName     string `json:"lastName"`
+	AvatarImgUrl string `json:"avatarImgUrl"`
+}
+
 type UserRequest struct {
 	UserID    int    `json:"-"`
 	Username  string `json:"username"`

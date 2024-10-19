@@ -2,6 +2,7 @@ package users
 
 import (
 	"strconv"
+	"vezhguesi/core/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -9,6 +10,7 @@ import (
 type UserHTTPTransport interface {
 	GetUsers(c *fiber.Ctx) error
 	GetUserByID(c *fiber.Ctx) error
+	GetUserData(c *fiber.Ctx) error
 }
 
 type userHttpTransport struct {
@@ -47,6 +49,22 @@ func (s *userHttpTransport) GetUserByID(c *fiber.Ctx) error {
 	}
 
 	resp, err := s.userAPI.GetUserByID(req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(resp)
+}
+
+func (s *userHttpTransport) GetUserData(c *fiber.Ctx) error {
+	req := &FindUserByID{}
+	userId, err := middleware.CtxUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
+	}
+	req.UserID = userId
+
+	resp, err := s.userAPI.GetUserData(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

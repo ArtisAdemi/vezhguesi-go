@@ -26,6 +26,7 @@ type AuthApi interface{
 	Signup(req *SignupRequest) (*SignupResponse, error)
 	VerifySignup(req *SignupVerifyRequest) (*StatusResponse, error)
 	Login(req *LoginRequest) (*LoginResponse, error)
+	UpdateUser(req *UpdateUserRequest) (*UserData, error)
 }
 
 func NewAuthApi(db *gorm.DB, secretKey string, dialer *gomail.Dialer, uiAppUrl string, logger log.AllLogger) AuthApi {
@@ -238,5 +239,48 @@ func (s *authApi) Login(req *LoginRequest) (res *LoginResponse, err error) {
 	return &LoginResponse{
 		UserData: &userData,
 		Token: t,
+	}, nil
+}
+
+// @Summary      	UpdateUser
+// @Description		Updates user data in DB.
+// @Tags			Auth
+// @Accept			json
+// @Produce			json
+// @Param			Authorization  header string true "Authorization Key (e.g Bearer key)"
+// @Param			UpdateUserRequest	body		UpdateUserRequest	true	"UpdateUserRequest"
+// @Success			200				{object}	UserData
+// @Router			/api/auth/update			[PUT]
+func (s *authApi) UpdateUser(req *UpdateUserRequest) (res *UserData, err error) {
+	if req.UserID == 0 {
+		return nil, fmt.Errorf("user ID is required")
+	}
+	if req.FirstName == "" || req.LastName == "" || req.Username == "" {
+		return nil, fmt.Errorf("first name, last name and username are required")
+	}
+
+	var user users.User
+	result := s.db.First(&user, req.UserID)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	user.FirstName = req.FirstName
+	user.LastName = req.LastName
+	user.Username = &req.Username
+
+	result = s.db.Save(&user)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &UserData{
+		ID: user.ID,
+		FirstName: user.FirstName,
+		LastName: user.LastName,
+		Username: *user.Username,
+		Email: user.Email,
+		Role: user.Role,
+		AvatarImgUrl: user.AvatarImgKey,
 	}, nil
 }

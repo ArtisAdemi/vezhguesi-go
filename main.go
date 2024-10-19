@@ -80,7 +80,7 @@ func main() {
 
 	// Register Routes
 	usersvc.RegisterRoutes(apisRouter, userAPISvc, authMiddleware)
-	authsvc.RegisterRoutes(apisRouter, authApiSvc)
+	authsvc.RegisterRoutes(apisRouter, authApiSvc, authMiddleware)
 	reportsvc.RegisterRoutes(apisRouter, reportApiSvc, authMiddleware)
 	entitysvc.RegisterRoutes(apisRouter, entityApiSvc)
 	// Auto Migrate Core

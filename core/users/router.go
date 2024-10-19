@@ -8,5 +8,6 @@ func RegisterRoutes(router fiber.Router, userHttpApi UserHTTPTransport, authMidd
 	userRoutes.Get("", userHttpApi.GetUsers)
 
 	// Protected with auth middleware
+	userRoutes.Get("/user-data", authMiddleware, userHttpApi.GetUserData)
 	userRoutes.Get("/:userId", authMiddleware, userHttpApi.GetUserByID)
 }

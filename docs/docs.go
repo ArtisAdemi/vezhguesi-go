@@ -83,6 +83,47 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/auth/update": {
+            "put": {
+                "description": "Updates user data in DB.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "UpdateUser",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization Key (e.g Bearer key)",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "UpdateUserRequest",
+                        "name": "UpdateUserRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.UpdateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.UserData"
+                        }
+                    }
+                }
+            }
+        },
         "/api/auth/verify-signup/{token}": {
             "get": {
                 "description": "Validates token in param, if token parses valid then user will be verified and be updated in DB.",
@@ -364,6 +405,34 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/users/user-data": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "GetUserData",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization Key (e.g Bearer key)",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/users.UserData"
+                        }
+                    }
+                }
+            }
+        },
         "/api/users/{userId}": {
             "get": {
                 "produces": [
@@ -462,6 +531,23 @@ const docTemplate = `{
             "properties": {
                 "status": {
                     "type": "boolean"
+                }
+            }
+        },
+        "auth.UpdateUserRequest": {
+            "type": "object",
+            "properties": {
+                "firstName": {
+                    "type": "string"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -685,6 +771,35 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updatedAt": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "users.UserData": {
+            "type": "object",
+            "properties": {
+                "avatarImgUrl": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "firstName": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "profileId": {
+                    "type": "integer"
+                },
+                "role": {
                     "type": "string"
                 },
                 "username": {
