@@ -1,6 +1,8 @@
 package users
 
 import (
+	"fmt"
+
 	"github.com/gofiber/fiber/v2/log"
 	"gopkg.in/gomail.v2" // Import gomail
 	"gorm.io/gorm"
@@ -17,6 +19,7 @@ type userApi struct {
 type UserAPI interface{
 	GetUsers(req *FindRequest) (*[]UserResponse, error)
 	GetUserByID(req *FindUserByID) (*FindByIDResponse, error)
+	GetUserData(req *FindUserByID) (*UserData, error)
 }
 
 func NewUserAPI(db *gorm.DB, secretKey string, dialer *gomail.Dialer, uiAppUrl string, logger log.AllLogger) UserAPI {
@@ -88,4 +91,34 @@ func (s *userApi) GetUserByID(req *FindUserByID) (res *FindByIDResponse, err err
 	}
 
 	return response, nil
+}
+
+// @Summary      	GetUserData
+// @Description
+// @Tags			Users
+// @Produce			json
+// @Param			Authorization  header string true "Authorization Key (e.g Bearer key)"
+// @Success			200								{object}	UserData
+// @Router			/api/users/user-data		[GET]
+func (s *userApi) GetUserData(req *FindUserByID) (res *UserData, err error) {
+	if req.UserID == 0 {
+		return nil, fmt.Errorf("user ID is required")
+	}
+
+	var user User
+	result := s.db.First(&user, req.UserID)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	var userData = &UserData{
+		ID: user.ID,
+		FirstName: user.FirstName,
+		LastName: user.LastName,
+		Username: *user.Username,
+		Email: user.Email,
+		Role: user.Role,
+	}
+
+	return userData, nil
 }

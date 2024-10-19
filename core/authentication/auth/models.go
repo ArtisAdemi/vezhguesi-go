@@ -108,3 +108,11 @@ type UserResponse struct {
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
+
+type UpdateUserRequest struct {
+	UserID int `json:"-"`
+	FirstName string `json:"firstName"`
+	LastName string `json:"lastName"`
+	Username string `json:"username"`
+	Phone string `json:"phone"`
+}

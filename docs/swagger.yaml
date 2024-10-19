@@ -40,6 +40,17 @@ definitions:
       status:
         type: boolean
     type: object
+  auth.UpdateUserRequest:
+    properties:
+      firstName:
+        type: string
+      lastName:
+        type: string
+      phone:
+        type: string
+      username:
+        type: string
+    type: object
   auth.UserData:
     properties:
       avatarImgUrl:
@@ -188,6 +199,25 @@ definitions:
       username:
         type: string
     type: object
+  users.UserData:
+    properties:
+      avatarImgUrl:
+        type: string
+      email:
+        type: string
+      firstName:
+        type: string
+      id:
+        type: integer
+      lastName:
+        type: string
+      profileId:
+        type: integer
+      role:
+        type: string
+      username:
+        type: string
+    type: object
   users.UserResponse:
     properties:
       avatarImgUrl:
@@ -259,6 +289,33 @@ paths:
           schema:
             $ref: '#/definitions/auth.LoginResponse'
       summary: Login
+      tags:
+      - Auth
+  /api/auth/update:
+    put:
+      consumes:
+      - application/json
+      description: Updates user data in DB.
+      parameters:
+      - description: Authorization Key (e.g Bearer key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: UpdateUserRequest
+        in: body
+        name: UpdateUserRequest
+        required: true
+        schema:
+          $ref: '#/definitions/auth.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.UserData'
+      summary: UpdateUser
       tags:
       - Auth
   /api/auth/verify-signup/{token}:
@@ -468,6 +525,24 @@ paths:
           schema:
             $ref: '#/definitions/users.FindByIDResponse'
       summary: GetUserByID
+      tags:
+      - Users
+  /api/users/user-data:
+    get:
+      parameters:
+      - description: Authorization Key (e.g Bearer key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/users.UserData'
+      summary: GetUserData
       tags:
       - Users
 swagger: "2.0"

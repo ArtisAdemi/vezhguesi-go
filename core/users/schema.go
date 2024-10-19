@@ -18,6 +18,7 @@ type User struct {
 	Active        bool
 	Phone         string
 	VerifiedEmail bool
+	Role          string
 	CreatedAt     time.Time
 	UpdatedAt     *time.Time
 	DeletedAt     *time.Time
