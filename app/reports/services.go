@@ -105,7 +105,7 @@ func (s *reportsApi) GetReports(req *GetReportsRequest) (res *[]ReportsResponse,
 // @Produce			json
 // @Param			Authorization  header string true "Authorization Key (e.g Bearer key)"
 // @Param			id				path		int		true	"Report ID"
-// @Success			200					{object}	ReportsResponse
+// @Success			200					{object}	ReportResponse
 // @Router			/api/reports/{id}	[GET]
 func (s *reportsApi) GetReportByID(req *IDRequest) (res *ReportResponse, err error) {
 	if req.UserID == 0 {
