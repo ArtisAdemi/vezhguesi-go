@@ -161,6 +161,8 @@ definitions:
     type: object
   reports.UpdateReportRequest:
     properties:
+      endDate:
+        type: string
       entities:
         items:
           $ref: '#/definitions/reports.ReportEntity'
@@ -173,6 +175,8 @@ definitions:
         type: integer
       sourceId:
         type: integer
+      startDate:
+        type: string
       subject:
         type: string
       title:

@@ -92,6 +92,7 @@ func (s *authApi) Signup(req *SignupRequest) (*SignupResponse, error) {
 	user.LastName = req.LastName
 	user.VerifiedEmail = false
 	user.Active = false
+	user.Role = "user"
 
 	hashedPw, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -104,7 +105,7 @@ func (s *authApi) Signup(req *SignupRequest) (*SignupResponse, error) {
 
 	result := s.db.Omit("UpdatedAt").Create(&user)
 	if result.Error != nil {
-		s.logger.Errorf("func: Signup, operation: s.db.Omit('UpdatedAt').Create(&user), err: %s", err.Error())
+		s.logger.Errorf("func: Signup, operation: s.db.Omit('UpdatedAt').Create(&user), err: %s", result.Error)
 		return nil, result.Error
 	}
 
@@ -234,6 +235,7 @@ func (s *authApi) Login(req *LoginRequest) (res *LoginResponse, err error) {
 		Username: *user.Username,
 		FirstName: user.FirstName,
 		LastName: user.LastName,
+		Role: user.Role,
 	}
 	
 	return &LoginResponse{

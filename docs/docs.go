@@ -720,6 +720,9 @@ const docTemplate = `{
         "reports.UpdateReportRequest": {
             "type": "object",
             "properties": {
+                "endDate": {
+                    "type": "string"
+                },
                 "entities": {
                     "type": "array",
                     "items": {
@@ -737,6 +740,9 @@ const docTemplate = `{
                 },
                 "sourceId": {
                     "type": "integer"
+                },
+                "startDate": {
+                    "type": "string"
                 },
                 "subject": {
                     "type": "string"
