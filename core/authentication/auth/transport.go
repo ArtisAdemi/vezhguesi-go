@@ -11,6 +11,8 @@ type AuthHTTPTransport interface {
 	VerifySignup(c *fiber.Ctx) error
 	Login(c *fiber.Ctx) error
 	UpdateUser(c *fiber.Ctx) error
+	ForgotPassword(c *fiber.Ctx) error
+	ResetPassword(c *fiber.Ctx) error
 }
 
 type authHttpTransport struct {
@@ -72,6 +74,35 @@ func (s *authHttpTransport) UpdateUser(c *fiber.Ctx) error {
 	}
 
 	resp, err := s.authAPI.UpdateUser(req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(resp)
+}
+
+func (s *authHttpTransport) ForgotPassword(c *fiber.Ctx) error {
+	req := &ForgotPasswordRequest{}
+	if err := c.BodyParser(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	resp, err := s.authAPI.ForgotPassword(req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(resp)
+}
+
+func (s *authHttpTransport) ResetPassword(c *fiber.Ctx) error {
+	req := &ResetPasswordRequest{}
+	req.Token = c.Params("token")
+	if err := c.BodyParser(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	resp, err := s.authAPI.ResetPassword(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

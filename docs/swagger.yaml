@@ -1,4 +1,9 @@
 definitions:
+  auth.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    type: object
   auth.LoginRequest:
     properties:
       email:
@@ -12,6 +17,13 @@ definitions:
         type: string
       userData:
         $ref: '#/definitions/auth.UserData'
+    type: object
+  auth.ResetPasswordRequest:
+    properties:
+      confirmNewPassword:
+        type: string
+      newPassword:
+        type: string
     type: object
   auth.SignupRequest:
     properties:
@@ -270,6 +282,28 @@ paths:
       summary: Signup
       tags:
       - Auth
+  /api/auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Sends email with reset password link to user.
+      parameters:
+      - description: ForgotPasswordRequest
+        in: body
+        name: ForgotPasswordRequest
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.StatusResponse'
+      summary: ForgotPassword
+      tags:
+      - Auth
   /api/auth/login:
     post:
       consumes:
@@ -293,6 +327,34 @@ paths:
           schema:
             $ref: '#/definitions/auth.LoginResponse'
       summary: Login
+      tags:
+      - Auth
+  /api/auth/reset-password/{token}:
+    put:
+      consumes:
+      - application/json
+      description: Validates token, new password, and confirm new password, checks
+        if user exists in DB then it updates the password in DB.
+      parameters:
+      - description: Token
+        in: path
+        name: token
+        required: true
+        type: string
+      - description: ResetPasswordRequest
+        in: body
+        name: ResetPasswordRequest
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.StatusResponse'
+      summary: ResetPassword
       tags:
       - Auth
   /api/auth/update:
@@ -459,7 +521,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/reports.ReportsResponse'
+            $ref: '#/definitions/reports.ReportResponse'
       summary: Get Report By ID
       tags:
       - Reports

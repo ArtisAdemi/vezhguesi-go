@@ -27,6 +27,8 @@ type AuthApi interface{
 	VerifySignup(req *SignupVerifyRequest) (*StatusResponse, error)
 	Login(req *LoginRequest) (*LoginResponse, error)
 	UpdateUser(req *UpdateUserRequest) (*UserData, error)
+	ForgotPassword(req *ForgotPasswordRequest) (*StatusResponse, error)
+	ResetPassword(req *ResetPasswordRequest) (*StatusResponse, error)
 }
 
 func NewAuthApi(db *gorm.DB, secretKey string, dialer *gomail.Dialer, uiAppUrl string, logger log.AllLogger) AuthApi {
@@ -284,5 +286,115 @@ func (s *authApi) UpdateUser(req *UpdateUserRequest) (res *UserData, err error) 
 		Email: user.Email,
 		Role: user.Role,
 		AvatarImgUrl: user.AvatarImgKey,
+	}, nil
+}
+
+// @Summary      	ForgotPassword
+// @Description		Sends email with reset password link to user.
+// @Tags			Auth
+// @Accept			json
+// @Produce			json
+// @Param			ForgotPasswordRequest	body		ForgotPasswordRequest	true	"ForgotPasswordRequest"
+// @Success			200				{object}	StatusResponse
+// @Router			/api/auth/forgot-password			[POST]
+func (s *authApi) ForgotPassword(req *ForgotPasswordRequest) (res *StatusResponse, err error) {
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+
+	if req.Email == "" {
+		return nil, fmt.Errorf("email is required")
+	}
+
+	if !helper.ValidEmail(req.Email) {
+		return nil, fmt.Errorf("invalid email")
+	}
+
+	var user users.User
+	s.db.Where("email = ?", req.Email).First(&user)
+	if user.ID == 0 {
+		return nil, helper.ErrNotFound
+	}
+
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+	claims["exp"] = time.Now().Add(time.Hour * 12).Unix()
+	claims["email"] = req.Email
+
+	t, err := token.SignedString([]byte(s.secretKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token")
+	}
+
+	verifyLink := s.uiAppUrl + "/reset-password/" + t
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", "info@vezhguesi.com")
+	m.SetHeader("To", req.Email)
+	m.SetHeader("Subject", "Reset your password")
+	m.SetBody("text/html", fmt.Sprintf("Click on the link to reset your password: <a href=\"%s\">Click here</a>", verifyLink))
+
+	if err := s.mailDialer.DialAndSend(m); err != nil {
+		s.logger.Errorf("func: Signup, operation: s.mailDialer.DialAndSend(m), err: %s", err.Error())
+		return nil, fmt.Errorf("failed to send email")
+	}
+
+	return &StatusResponse{
+		Status: true,
+	}, nil
+}
+
+
+// @Summary      	ResetPassword
+// @Description		Validates token, new password, and confirm new password, checks if user exists in DB then it updates the password in DB.
+// @Tags			Auth
+// @Accept			json
+// @Produce			json
+// @Param			token				path		string			true	"Token"
+// @Param			ResetPasswordRequest	body		ResetPasswordRequest	true	"ResetPasswordRequest"
+// @Success			200					{object}	StatusResponse
+// @Router			/api/auth/reset-password/{token}	[PUT]
+func (s *authApi) ResetPassword(req *ResetPasswordRequest) (res *StatusResponse, err error) {
+	req.Token = strings.TrimSpace(req.Token)
+	req.NewPassword = strings.TrimSpace(req.NewPassword)
+	req.ConfirmNewPassword = strings.TrimSpace(req.ConfirmNewPassword)
+	if req.Token == "" || req.NewPassword == "" || req.ConfirmNewPassword == "" {
+		return nil, fmt.Errorf("token, new password and confirm new password are required")
+	}
+
+	if req.NewPassword != req.ConfirmNewPassword {
+		return nil, fmt.Errorf("new password and confirm new password do not match")
+	}
+
+	claims := jwt.MapClaims{}
+	_, err = jwt.ParseWithClaims(req.Token, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(s.secretKey), nil
+	})
+
+	if err != nil {
+		fmt.Println("ParseWithClaims", err)
+		return nil, err
+	}
+
+	email := fmt.Sprintf("%v", claims["email"])
+
+	var user users.User
+	s.db.Where("email = ?", email).First(&user)
+	if user.ID == 0 {
+		return nil, helper.ErrNotFound
+	}
+
+	pwh, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password")
+	}
+	pwhs := string(pwh)
+	user.Password = pwhs
+
+	result := s.db.Save(&user)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &StatusResponse{
+		Status: true,
 	}, nil
 }

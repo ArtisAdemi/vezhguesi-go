@@ -30,10 +30,6 @@ type UserData struct {
 	AvatarImgUrl string `json:"avatarImgUrl"`
 }
 
-type ForgotPasswordRequest struct {
-	Email string `json:"email"`
-}
-
 type ResetPasswordRequest struct {
 	Token              string `json:"-"`
 	NewPassword        string `json:"newPassword"`
@@ -116,3 +112,8 @@ type UpdateUserRequest struct {
 	Username string `json:"username"`
 	Phone string `json:"phone"`
 }
+
+type ForgotPasswordRequest struct {
+	Email        string `json:"email"`
+}
+
