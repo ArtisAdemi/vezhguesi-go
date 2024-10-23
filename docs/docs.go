@@ -49,6 +49,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/auth/forgot-password": {
+            "post": {
+                "description": "Sends email with reset password link to user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "ForgotPassword",
+                "parameters": [
+                    {
+                        "description": "ForgotPasswordRequest",
+                        "name": "ForgotPasswordRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.ForgotPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.StatusResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/auth/login": {
             "post": {
                 "description": "Validates email and password in request, check if user exists in DB if not throw 404 otherwise compare the request password with hash, then check if user is active, then finds relationships of user with orgs and then generates a JWT token, and returns UserData, Orgs, and Token in response.",
@@ -78,6 +112,47 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/auth.LoginResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/reset-password/{token}": {
+            "put": {
+                "description": "Validates token, new password, and confirm new password, checks if user exists in DB then it updates the password in DB.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "ResetPassword",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ResetPasswordRequest",
+                        "name": "ResetPasswordRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.StatusResponse"
                         }
                     }
                 }
@@ -331,7 +406,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/reports.ReportsResponse"
+                            "$ref": "#/definitions/reports.ReportResponse"
                         }
                     }
                 }
@@ -470,6 +545,14 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "auth.ForgotPasswordRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
         "auth.LoginRequest": {
             "type": "object",
             "properties": {
@@ -489,6 +572,17 @@ const docTemplate = `{
                 },
                 "userData": {
                     "$ref": "#/definitions/auth.UserData"
+                }
+            }
+        },
+        "auth.ResetPasswordRequest": {
+            "type": "object",
+            "properties": {
+                "confirmNewPassword": {
+                    "type": "string"
+                },
+                "newPassword": {
+                    "type": "string"
                 }
             }
         },
