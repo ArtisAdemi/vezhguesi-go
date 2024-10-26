@@ -5,8 +5,10 @@ import (
 	"os"
 
 	entitysvc "vezhguesi/app/entities"
+	orgsvc "vezhguesi/app/orgs"
 	reportsvc "vezhguesi/app/reports"
 	authsvc "vezhguesi/core/authentication/auth"
+	rolesvc "vezhguesi/core/authorization/role"
 	db "vezhguesi/core/db"
 	"vezhguesi/core/middleware"
 	usersvc "vezhguesi/core/users"
@@ -77,21 +79,30 @@ func main() {
 	reportApiSvc := reportsvc.NewReportsHTTPTransport(
 		reportsvc.NewReportsAPI(db, dialer, os.Getenv("UI_APP_URL"), defaultLogger, entitysvc.NewEntitiesAPI(db, defaultLogger)),
 	)
+	orgApiSvc := orgsvc.NewOrgHTTPTransport(
+		orgsvc.NewOrgAPI(db, defaultLogger),
+		defaultLogger,
+	)
 
 	// Register Routes
 	usersvc.RegisterRoutes(apisRouter, userAPISvc, authMiddleware)
 	authsvc.RegisterRoutes(apisRouter, authApiSvc, authMiddleware)
 	reportsvc.RegisterRoutes(apisRouter, reportApiSvc, authMiddleware)
 	entitysvc.RegisterRoutes(apisRouter, entityApiSvc)
+	orgsvc.RegisterRoutes(apisRouter, orgApiSvc, authMiddleware)
 	// Auto Migrate Core
 	db.AutoMigrate(
 		&usersvc.User{},
+		&rolesvc.Role{},
+		&rolesvc.Permission{},
 	)
 
 	// Auto Migrate App
 	db.AutoMigrate(
 		&reportsvc.Report{},
 		&entitysvc.Entity{},
+		&orgsvc.Org{},
+		&orgsvc.UserOrgRole{},
 	)
 
 	// Start the server

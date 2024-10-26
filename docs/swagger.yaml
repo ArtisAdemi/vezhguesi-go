@@ -111,6 +111,22 @@ definitions:
       type:
         type: string
     type: object
+  orgs.AddOrgRequest:
+    properties:
+      name:
+        type: string
+      size:
+        type: string
+    type: object
+  orgs.OrgResponse:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      orgSlug:
+        type: string
+    type: object
   reports.CreateReportRequest:
     properties:
       endDate:
@@ -452,6 +468,35 @@ paths:
       summary: Get Entity
       tags:
       - Entities
+  /api/orgs:
+    post:
+      consumes:
+      - application/json
+      description: Validates user id, org name and org size, checks if org exists
+        in DB by name or slug, if not a new organization with trial subscription will
+        be created and then the created ID will be returned.
+      parameters:
+      - description: Authorization Key(e.g Bearer key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: AddOrgRequest
+        in: body
+        name: AddOrgRequest
+        required: true
+        schema:
+          $ref: '#/definitions/orgs.AddOrgRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orgs.OrgResponse'
+      summary: Add
+      tags:
+      - Orgs
   /api/reports/:
     get:
       consumes:
