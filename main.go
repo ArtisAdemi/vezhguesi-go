@@ -7,6 +7,7 @@ import (
 	entitysvc "vezhguesi/app/entities"
 	orgsvc "vezhguesi/app/orgs"
 	reportsvc "vezhguesi/app/reports"
+	subscriptionsvc "vezhguesi/app/subscriptions"
 	authsvc "vezhguesi/core/authentication/auth"
 	rolesvc "vezhguesi/core/authorization/role"
 	db "vezhguesi/core/db"
@@ -96,13 +97,15 @@ func main() {
 		&rolesvc.Role{},
 		&rolesvc.Permission{},
 	)
-
+	
 	// Auto Migrate App
 	db.AutoMigrate(
 		&reportsvc.Report{},
 		&entitysvc.Entity{},
 		&orgsvc.Org{},
 		&orgsvc.UserOrgRole{},
+		&subscriptionsvc.Subscription{},
+		&subscriptionsvc.Feature{},
 	)
 
 	// Start the server
