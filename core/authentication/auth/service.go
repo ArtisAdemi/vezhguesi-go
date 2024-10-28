@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	session "vezhguesi/core/authentication"
 	"vezhguesi/core/users"
 	"vezhguesi/helper"
 
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gomail.v2"
 	"gorm.io/gorm"
@@ -206,7 +208,6 @@ func (s *authApi) Login(req *LoginRequest) (res *LoginResponse, err error) {
 		fmt.Println("err", "email not found")
 		return nil, helper.ErrNotFound
 	}
-	fmt.Println("user", user)
 
 	if !user.VerifiedEmail {
 		return nil, fmt.Errorf("email not verified")
@@ -220,6 +221,21 @@ func (s *authApi) Login(req *LoginRequest) (res *LoginResponse, err error) {
 		return nil, helper.ErrNotFound
 	}
 
+	// Invalidate existing session
+	s.db.Where("user_id = ?", user.ID).Delete(&session.Session{})
+
+	// Create new session
+	sessionToken := uuid.New().String()
+	session := session.Session{
+		UserID:      uint(user.ID),
+		SessionToken: sessionToken,
+		CreatedAt:   time.Now(),
+		ExpiresAt:   time.Now().Add(24 * time.Hour), // 24-hour session
+	}
+	if err := s.db.Create(&session).Error; err != nil {
+		return nil, fmt.Errorf("failed to create session")
+	}
+
 	// Generate JWT Token with expiration
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
@@ -230,7 +246,7 @@ func (s *authApi) Login(req *LoginRequest) (res *LoginResponse, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token")
 	}
-	
+
 	userData := UserData{
 		ID: user.ID,
 		Email: user.Email,
@@ -239,10 +255,11 @@ func (s *authApi) Login(req *LoginRequest) (res *LoginResponse, err error) {
 		LastName: user.LastName,
 		Role: user.Role,
 	}
-	
+
 	return &LoginResponse{
 		UserData: &userData,
 		Token: t,
+		SessionToken: sessionToken, // Include session token in response
 	}, nil
 }
 

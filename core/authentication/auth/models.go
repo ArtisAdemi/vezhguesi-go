@@ -15,8 +15,9 @@ type StatusResponse struct {
 }
 
 type LoginResponse struct {
-	UserData *UserData `json:"userData"`
-	Token    string    `json:"token"`
+	UserData    *UserData `json:"userData"`
+	Token       string    `json:"token"`
+	SessionToken string   `json:"sessionToken"`
 }
 
 type UserData struct {
@@ -116,4 +117,5 @@ type UpdateUserRequest struct {
 type ForgotPasswordRequest struct {
 	Email        string `json:"email"`
 }
+
 

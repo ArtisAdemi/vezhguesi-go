@@ -2,10 +2,15 @@ package middleware
 
 import (
 	"errors"
+	"net/http"
 	"strings"
+	"time"
+
+	session "vezhguesi/core/authentication"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
+	"gorm.io/gorm"
 )
 
 func Authentication(secretKey string) fiber.Handler {
@@ -40,4 +45,25 @@ func CtxUserID(c *fiber.Ctx) (int, error) {
 		return 0, errors.New("user ID not found in context")
 	}
 	return int(userID), nil
+}
+
+func SessionMiddleware(db *gorm.DB) fiber.Handler {
+    return func(c *fiber.Ctx) error {
+        sessionToken := c.Get("Authorization")
+        if sessionToken == "" {
+            return c.Status(http.StatusUnauthorized).SendString("Unauthorized")
+        }
+
+        var session session.Session
+        if err := db.Where("session_token = ?", sessionToken).First(&session).Error; err != nil {
+            return c.Status(http.StatusUnauthorized).SendString("Unauthorized")
+        }
+
+        if session.ExpiresAt.Before(time.Now()) {
+            db.Delete(&session)
+            return c.Status(http.StatusUnauthorized).SendString("Session expired")
+        }
+
+        return c.Next()
+    }
 }

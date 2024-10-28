@@ -9,6 +9,7 @@ import (
 	orgsvc "vezhguesi/app/orgs"
 	reportsvc "vezhguesi/app/reports"
 	subscriptionsvc "vezhguesi/app/subscriptions"
+	session "vezhguesi/core/authentication"
 	authsvc "vezhguesi/core/authentication/auth"
 	rolesvc "vezhguesi/core/authorization/role"
 	db "vezhguesi/core/db"
@@ -107,9 +108,10 @@ func main() {
 		defaultLogger,
 	)
 
+	
 	// Register Routes
 	usersvc.RegisterRoutes(apisRouter, userAPISvc, authMiddleware)
-	authsvc.RegisterRoutes(apisRouter, authApiSvc, authMiddleware)
+	authsvc.RegisterRoutes(apisRouter, authApiSvc, authMiddleware, middleware.SessionMiddleware(db))
 	reportsvc.RegisterRoutes(apisRouter, reportApiSvc, authMiddleware)
 	entitysvc.RegisterRoutes(apisRouter, entityApiSvc)
 	orgsvc.RegisterRoutes(apisRouter, orgApiSvc, authMiddleware)
@@ -118,6 +120,7 @@ func main() {
 		&usersvc.User{},
 		&rolesvc.Role{},
 		&rolesvc.Permission{},
+		&session.Session{}, // Add this line
 	)
 	
 	// Auto Migrate App
