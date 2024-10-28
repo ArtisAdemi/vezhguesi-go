@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -11,6 +12,7 @@ import (
 	authsvc "vezhguesi/core/authentication/auth"
 	rolesvc "vezhguesi/core/authorization/role"
 	db "vezhguesi/core/db"
+	dbseeds "vezhguesi/core/db/seeds"
 	"vezhguesi/core/middleware"
 	usersvc "vezhguesi/core/users"
 	_ "vezhguesi/docs" // Import the generated docs package
@@ -23,6 +25,26 @@ import (
 	"gopkg.in/gomail.v2" // Import gomail
 	// http-swagger middleware
 )
+
+type StringArray []string
+
+func (a StringArray) Value() (interface{}, error) {
+	return json.Marshal(a)
+}
+
+func (a *StringArray) Scan(value interface{}) error {
+	if value == nil {
+		*a = nil
+		return nil
+	}
+
+	b, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("type assertion to []byte failed")
+	}
+
+	return json.Unmarshal(b, a)
+}
 
 func main() {
 	db, err := db.ConnectDB()
@@ -107,6 +129,8 @@ func main() {
 		&subscriptionsvc.Subscription{},
 		&subscriptionsvc.Feature{},
 	)
+
+	dbseeds.SeedDefaultRolesAndPermissions(db)
 
 	// Start the server
 	log.Fatal(app.Listen(fmt.Sprintf(`:%d`, 3001)))
