@@ -1,17 +1,14 @@
 package role
 
-import "time"
-
-const (
-	RoleTableName           = "roles"
-	PermissionTableName     = "permissions"
-	RolePermissionTableName = "role_permissions"
+import (
+	"time"
 )
 
 type Role struct {
-	ID          int `gorm:"primaryKey"`
-	Name        string
-	Description *string
+	ID          int          `gorm:"primaryKey"`
+OrgID *int
+	Name        string       `gorm:"not null"`
+	Description *string      `gorm:"type:text"`
 	Permissions []Permission `gorm:"many2many:role_permissions"`
 	CreatedAt   time.Time
 	UpdatedAt   *time.Time
@@ -19,10 +16,10 @@ type Role struct {
 }
 
 type Permission struct {
-	ID int `gorm:"primaryKey"`
+	ID          int        `gorm:"primaryKey"`
 	Name        string
-	HTTPMethods []string
-	URLs        []string
+	HTTPMethods string
+	Path        string
 	Description *string
 	CreatedAt   time.Time
 	UpdatedAt   *time.Time
