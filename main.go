@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	articles "vezhguesi/app/articles"
 	entitysvc "vezhguesi/app/entities"
 	orgsvc "vezhguesi/app/orgs"
 	reportsvc "vezhguesi/app/reports"
@@ -101,7 +102,7 @@ func main() {
 		entitysvc.NewEntitiesAPI(db, defaultLogger),
 	)
 	reportApiSvc := reportsvc.NewReportsHTTPTransport(
-		reportsvc.NewReportsAPI(db, dialer, os.Getenv("UI_APP_URL"), defaultLogger, entitysvc.NewEntitiesAPI(db, defaultLogger)),
+		reportsvc.NewReportsAPI(db, dialer, os.Getenv("UI_APP_URL"), defaultLogger, entitysvc.NewEntitiesAPI(db, defaultLogger), articles.NewArticlesAPI(db, defaultLogger)),
 	)
 	orgApiSvc := orgsvc.NewOrgHTTPTransport(
 		orgsvc.NewOrgAPI(db, defaultLogger),
@@ -131,6 +132,7 @@ func main() {
 		&orgsvc.UserOrgRole{},
 		&subscriptionsvc.Subscription{},
 		&subscriptionsvc.Feature{},
+		&articles.Article{},
 	)
 
 	dbseeds.SeedDefaultRolesAndPermissions(db)

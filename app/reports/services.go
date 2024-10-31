@@ -1,7 +1,11 @@
 package reports
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+	articles "vezhguesi/app/articles"
 	"vezhguesi/app/entities"
 
 	"github.com/gofiber/fiber/v2/log"
@@ -15,17 +19,18 @@ type reportsApi struct {
 	uiAppUrl string
 	logger log.AllLogger
 	entitiesApi entities.EntitiesAPI
+	articlesApi articles.ArticlesAPI
 }
 
 type ReportsAPI interface {
 	Create(req *CreateReportRequest) (res *ReportResponse, err error)
-	GetReports(req *GetReportsRequest) (res *[]ReportsResponse, err error)
+	GetReports(req *GetReportsRequest) (res *GetReportsResponse, err error)
 	GetReportByID(req *IDRequest) (res *ReportResponse, err error)
 	UpdateReport(req *UpdateReportRequest) (res *ReportResponse, err error)
 }
 
-func NewReportsAPI(db *gorm.DB, mailDialer *gomail.Dialer, uiAppUrl string, logger log.AllLogger, entitiesApi entities.EntitiesAPI) ReportsAPI {
-	return &reportsApi{db: db, mailDialer: mailDialer, uiAppUrl: uiAppUrl, logger: logger, entitiesApi: entitiesApi}
+func NewReportsAPI(db *gorm.DB, mailDialer *gomail.Dialer, uiAppUrl string, logger log.AllLogger, entitiesApi entities.EntitiesAPI, articlesApi articles.ArticlesAPI) ReportsAPI {
+	return &reportsApi{db: db, mailDialer: mailDialer, uiAppUrl: uiAppUrl, logger: logger, entitiesApi: entitiesApi, articlesApi: articlesApi}
 }
 
 // @Summary      	Create Report
@@ -50,10 +55,40 @@ func (s *reportsApi) Create(req *CreateReportRequest) (res *ReportResponse, err 
 		return nil, fmt.Errorf("end date is required")
 	}
 
+	subjectList := strings.Split(req.Subject, ",")
+
 	report := &Report{
 		Subject: req.Subject,
 		StartDate: req.StartDate,
 		EndDate: req.EndDate,
+	}
+
+	articles, err := s.articlesApi.FetchArticles()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch articles: %v", err)
+	}
+
+	var articlesList []Articles
+	for _, article := range articles {
+		for _, subject := range subjectList {
+			if strings.Contains(article.Content, subject) {
+				articlesList = append(articlesList, Articles{
+					ID: article.ID,
+					Title: article.Title,
+					Content: article.Content,
+				})
+			}
+		}
+	}
+
+	var articleIds []int
+	for _, article := range articlesList {
+		articleIds = append(articleIds, article.ID)
+	}
+
+	_, err = s.articlesApi.AnalyzeArticles(&articleIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to analyze articles: %v", err)
 	}
 
 	result := s.db.Create(&report)
@@ -61,8 +96,10 @@ func (s *reportsApi) Create(req *CreateReportRequest) (res *ReportResponse, err 
 		return nil, result.Error
 	}
 
+
 	resp := &ReportResponse{
 		Report: *report,
+		Articles: articlesList,
 	}
 
 	return resp, nil
@@ -75,30 +112,29 @@ func (s *reportsApi) Create(req *CreateReportRequest) (res *ReportResponse, err 
 // @Accept			json
 // @Produce			json
 // @Param			Authorization  header string true "Authorization Key (e.g Bearer key)"
-// @Success			200					{object}	ReportsResponse
+// @Success			200					{object}	GetReportsResponse
 // @Router			/api/reports/	[GET]
-func (s *reportsApi) GetReports(req *GetReportsRequest) (res *[]ReportsResponse, err error) {
-	if req.UserID == 0 {
-		return nil, fmt.Errorf("user id is required")
+func (s *reportsApi) GetReports(req *GetReportsRequest) (res *GetReportsResponse, err error) {
+	// Make an HTTP GET request to fetch the analyses data
+	resp, err := http.Get("http://192.168.0.10:5100/analyses")
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch analyses data: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch analyses data: status code %d", resp.StatusCode)
 	}
 
-	var reports []Report
-	result := s.db.Preload("Entities").Find(&reports)
-	if result.Error != nil {
-		return nil, result.Error
+	// Decode the JSON response
+	var analysesResponse GetReportsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&analysesResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode analyses data: %v", err)
 	}
 
-	var response []ReportsResponse
-	for _, report := range reports {
-		response = append(response, ReportsResponse{
-			Reports: []Report{report}, // Use 'Reports' and wrap 'report' in a slice
-		})
-	}
-
-	return &response, nil
+	return &analysesResponse, nil
 }
 
-// @Summary      	Get Report By ID
 // @Description	Validates id and user id. Gets report by id
 // @Tags			Reports
 // @Accept			json
