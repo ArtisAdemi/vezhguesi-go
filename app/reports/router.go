@@ -6,6 +6,7 @@ func RegisterRoutes(router fiber.Router, reportsHttpApi ReportsHTTPTransport, au
 	reportsRoutes := router.Group("/reports")
 	reportsRoutes.Post("", authMiddleware, reportsHttpApi.Create)
 	reportsRoutes.Get("", authMiddleware, reportsHttpApi.GetReports)
+	reportsRoutes.Get("/my-reports", authMiddleware, reportsHttpApi.GetMyReports)
 	reportsRoutes.Get("/:id", authMiddleware, reportsHttpApi.GetReportByID)
 	reportsRoutes.Put("/:id", authMiddleware, reportsHttpApi.UpdateReport)
 }

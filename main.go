@@ -18,6 +18,7 @@ import (
 	"vezhguesi/core/middleware"
 	usersvc "vezhguesi/core/users"
 	_ "vezhguesi/docs" // Import the generated docs package
+	server "vezhguesi/sentiment-communication"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -82,7 +83,7 @@ func main() {
 
 	apisRouter.Get("/swagger/*", basicauth.New(basicauth.Config{
 		Users: map[string]string{
-			"babuqi": "dedidedi123",
+			"influxo": "123123123",
 		},
 	}), swagger.HandlerDefault)
 
@@ -102,7 +103,7 @@ func main() {
 		entitysvc.NewEntitiesAPI(db, defaultLogger),
 	)
 	reportApiSvc := reportsvc.NewReportsHTTPTransport(
-		reportsvc.NewReportsAPI(db, dialer, os.Getenv("UI_APP_URL"), defaultLogger, entitysvc.NewEntitiesAPI(db, defaultLogger), articles.NewArticlesAPI(db, defaultLogger)),
+		reportsvc.NewReportsAPI(db, dialer, os.Getenv("UI_APP_URL"), defaultLogger, entitysvc.NewEntitiesAPI(db, defaultLogger), server.NewServerAPI(db, defaultLogger)),
 	)
 	orgApiSvc := orgsvc.NewOrgHTTPTransport(
 		orgsvc.NewOrgAPI(db, defaultLogger),
