@@ -4,7 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func RegisterRoutes(router fiber.Router, authHttpApi AuthHTTPTransport, authMiddleware func(c *fiber.Ctx) error) {
+func RegisterRoutes(router fiber.Router, authHttpApi AuthHTTPTransport, authMiddleware func(c *fiber.Ctx) error, sessionMiddleware func(c *fiber.Ctx) error) {
 	authRoutes := router.Group("/auth")
 	// Public routes
 	authRoutes.Post("", authHttpApi.Signup)
@@ -13,5 +13,6 @@ func RegisterRoutes(router fiber.Router, authHttpApi AuthHTTPTransport, authMidd
 	authRoutes.Post("/forgot-password", authHttpApi.ForgotPassword)
 	authRoutes.Put("/reset-password/:token", authHttpApi.ResetPassword)
 	// Protected routes
+	authRoutes.Use(sessionMiddleware)
 	authRoutes.Put("/update", authMiddleware, authHttpApi.UpdateUser)
 }

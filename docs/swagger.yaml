@@ -13,6 +13,8 @@ definitions:
     type: object
   auth.LoginResponse:
     properties:
+      sessionToken:
+        type: string
       token:
         type: string
       userData:
@@ -97,6 +99,14 @@ definitions:
         type: integer
       name:
         type: string
+      relatedTopics:
+        description: Serialize to JSON
+        type: string
+      sentimentLabel:
+        type: string
+      sentimentScores:
+        description: Serialize to JSON
+        type: string
       type:
         type: string
       updatedAt:
@@ -127,6 +137,84 @@ definitions:
       orgSlug:
         type: string
     type: object
+  reports.Analysis:
+    properties:
+      analysis_results:
+        $ref: '#/definitions/reports.AnalysisResults'
+      article_metadata:
+        $ref: '#/definitions/reports.ArticleMetadata'
+    type: object
+  reports.AnalysisEntity:
+    properties:
+      name:
+        type: string
+      related_topics:
+        items:
+          type: string
+        type: array
+      sentiment_label:
+        type: string
+      sentiment_score:
+        type: number
+    type: object
+  reports.AnalysisResults:
+    properties:
+      entities:
+        items:
+          $ref: '#/definitions/reports.AnalysisEntity'
+        type: array
+      topics:
+        items:
+          $ref: '#/definitions/reports.AnalysisTopic'
+        type: array
+    type: object
+  reports.AnalysisTopic:
+    properties:
+      name:
+        type: string
+      related_entities:
+        items:
+          type: string
+        type: array
+      sentiment_label:
+        type: string
+      sentiment_score:
+        type: number
+    type: object
+  reports.ArticleMetadata:
+    properties:
+      article_summary:
+        type: string
+      id:
+        type: integer
+      published_date:
+        type: string
+      scraped_at:
+        type: string
+      title:
+        type: string
+      url:
+        type: string
+      url_id:
+        type: integer
+    type: object
+  reports.Articles:
+    properties:
+      config_id:
+        type: integer
+      content:
+        type: string
+      id:
+        type: integer
+      published_date:
+        type: string
+      scraped_at:
+        type: string
+      title:
+        type: string
+      url_id:
+        type: integer
+    type: object
   reports.CreateReportRequest:
     properties:
       endDate:
@@ -135,6 +223,33 @@ definitions:
         type: string
       subject:
         type: string
+    type: object
+  reports.EntityAnalysis:
+    properties:
+      analyses:
+        items:
+          $ref: '#/definitions/reports.Analysis'
+        type: array
+      entity_name:
+        type: string
+      total_articles:
+        type: integer
+    type: object
+  reports.GetMyReportsResponse:
+    properties:
+      entities:
+        items:
+          $ref: '#/definitions/reports.EntityAnalysis'
+        type: array
+    type: object
+  reports.GetReportsResponse:
+    properties:
+      analyses:
+        items:
+          $ref: '#/definitions/reports.Analysis'
+        type: array
+      total_articles:
+        type: integer
     type: object
   reports.Report:
     properties:
@@ -165,6 +280,10 @@ definitions:
         type: string
       updatedAt:
         type: string
+      user:
+        $ref: '#/definitions/users.User'
+      userID:
+        type: integer
     type: object
   reports.ReportEntity:
     properties:
@@ -175,17 +294,14 @@ definitions:
     type: object
   reports.ReportResponse:
     properties:
+      articles:
+        items:
+          $ref: '#/definitions/reports.Articles'
+        type: array
       report:
         $ref: '#/definitions/reports.Report'
       userId:
         type: integer
-    type: object
-  reports.ReportsResponse:
-    properties:
-      reports:
-        items:
-          $ref: '#/definitions/reports.Report'
-        type: array
     type: object
   reports.UpdateReportRequest:
     properties:
@@ -230,6 +346,39 @@ definitions:
         type: string
       username:
         type: string
+    type: object
+  users.User:
+    properties:
+      active:
+        type: boolean
+      avatarImgKey:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        type: string
+      email:
+        type: string
+      firstName:
+        type: string
+      id:
+        type: integer
+      lastName:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+      updatedAt:
+        type: string
+      username:
+        type: string
+      verifiedEmail:
+        type: boolean
     type: object
   users.UserData:
     properties:
@@ -508,13 +657,18 @@ paths:
         name: Authorization
         required: true
         type: string
+      - description: terms
+        in: query
+        name: terms
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/reports.ReportsResponse'
+            $ref: '#/definitions/reports.GetReportsResponse'
       summary: Get Reports
       tags:
       - Reports
@@ -567,7 +721,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/reports.ReportResponse'
-      summary: Get Report By ID
       tags:
       - Reports
     put:
@@ -599,6 +752,27 @@ paths:
           schema:
             $ref: '#/definitions/reports.ReportResponse'
       summary: Update Report
+      tags:
+      - Reports
+  /api/reports/my-reports:
+    get:
+      consumes:
+      - application/json
+      description: Validates user id. Gets all reports made by the user
+      parameters:
+      - description: Authorization Key (e.g Bearer key)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/reports.GetMyReportsResponse'
+      summary: Get My Reports
       tags:
       - Reports
   /api/users:

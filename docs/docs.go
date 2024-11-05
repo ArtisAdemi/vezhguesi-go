@@ -363,13 +363,20 @@ const docTemplate = `{
                         "name": "Authorization",
                         "in": "header",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "terms",
+                        "name": "terms",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/reports.ReportsResponse"
+                            "$ref": "#/definitions/reports.GetReportsResponse"
                         }
                     }
                 }
@@ -414,6 +421,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/reports/my-reports": {
+            "get": {
+                "description": "Validates user id. Gets all reports made by the user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Get My Reports",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization Key (e.g Bearer key)",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/reports.GetMyReportsResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/reports/{id}": {
             "get": {
                 "description": "Validates id and user id. Gets report by id",
@@ -426,7 +465,6 @@ const docTemplate = `{
                 "tags": [
                     "Reports"
                 ],
-                "summary": "Get Report By ID",
                 "parameters": [
                     {
                         "type": "string",
@@ -608,6 +646,9 @@ const docTemplate = `{
         "auth.LoginResponse": {
             "type": "object",
             "properties": {
+                "sessionToken": {
+                    "type": "string"
+                },
                 "token": {
                     "type": "string"
                 },
@@ -738,6 +779,17 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "relatedTopics": {
+                    "description": "Serialize to JSON",
+                    "type": "string"
+                },
+                "sentimentLabel": {
+                    "type": "string"
+                },
+                "sentimentScores": {
+                    "description": "Serialize to JSON",
+                    "type": "string"
+                },
                 "type": {
                     "type": "string"
                 },
@@ -785,6 +837,126 @@ const docTemplate = `{
                 }
             }
         },
+        "reports.Analysis": {
+            "type": "object",
+            "properties": {
+                "analysis_results": {
+                    "$ref": "#/definitions/reports.AnalysisResults"
+                },
+                "article_metadata": {
+                    "$ref": "#/definitions/reports.ArticleMetadata"
+                }
+            }
+        },
+        "reports.AnalysisEntity": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "related_topics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "sentiment_label": {
+                    "type": "string"
+                },
+                "sentiment_score": {
+                    "type": "number"
+                }
+            }
+        },
+        "reports.AnalysisResults": {
+            "type": "object",
+            "properties": {
+                "entities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/reports.AnalysisEntity"
+                    }
+                },
+                "topics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/reports.AnalysisTopic"
+                    }
+                }
+            }
+        },
+        "reports.AnalysisTopic": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "related_entities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "sentiment_label": {
+                    "type": "string"
+                },
+                "sentiment_score": {
+                    "type": "number"
+                }
+            }
+        },
+        "reports.ArticleMetadata": {
+            "type": "object",
+            "properties": {
+                "article_summary": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "published_date": {
+                    "type": "string"
+                },
+                "scraped_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "url_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "reports.Articles": {
+            "type": "object",
+            "properties": {
+                "config_id": {
+                    "type": "integer"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "published_date": {
+                    "type": "string"
+                },
+                "scraped_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "url_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "reports.CreateReportRequest": {
             "type": "object",
             "properties": {
@@ -796,6 +968,48 @@ const docTemplate = `{
                 },
                 "subject": {
                     "type": "string"
+                }
+            }
+        },
+        "reports.EntityAnalysis": {
+            "type": "object",
+            "properties": {
+                "analyses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/reports.Analysis"
+                    }
+                },
+                "entity_name": {
+                    "type": "string"
+                },
+                "total_articles": {
+                    "type": "integer"
+                }
+            }
+        },
+        "reports.GetMyReportsResponse": {
+            "type": "object",
+            "properties": {
+                "entities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/reports.EntityAnalysis"
+                    }
+                }
+            }
+        },
+        "reports.GetReportsResponse": {
+            "type": "object",
+            "properties": {
+                "analyses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/reports.Analysis"
+                    }
+                },
+                "total_articles": {
+                    "type": "integer"
                 }
             }
         },
@@ -841,6 +1055,12 @@ const docTemplate = `{
                 },
                 "updatedAt": {
                     "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/users.User"
+                },
+                "userID": {
+                    "type": "integer"
                 }
             }
         },
@@ -858,22 +1078,17 @@ const docTemplate = `{
         "reports.ReportResponse": {
             "type": "object",
             "properties": {
+                "articles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/reports.Articles"
+                    }
+                },
                 "report": {
                     "$ref": "#/definitions/reports.Report"
                 },
                 "userId": {
                     "type": "integer"
-                }
-            }
-        },
-        "reports.ReportsResponse": {
-            "type": "object",
-            "properties": {
-                "reports": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/reports.Report"
-                    }
                 }
             }
         },
@@ -941,6 +1156,56 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "users.User": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "avatarImgKey": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "firstName": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "verifiedEmail": {
+                    "type": "boolean"
                 }
             }
         },

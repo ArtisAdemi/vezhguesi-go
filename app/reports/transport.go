@@ -3,6 +3,7 @@ package reports
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"vezhguesi/core/middleware"
 	"vezhguesi/helper"
 
@@ -14,6 +15,7 @@ type ReportsHTTPTransport interface {
 	GetReports(c *fiber.Ctx) error
 	GetReportByID(c *fiber.Ctx) error
 	UpdateReport(c *fiber.Ctx) error
+	GetMyReports(c *fiber.Ctx) error
 }
 
 type reportsHttpTransport struct {
@@ -48,11 +50,15 @@ func (s *reportsHttpTransport) Create(c *fiber.Ctx) error {
 func (s *reportsHttpTransport) GetReports(c *fiber.Ctx) error {
 	req := &GetReportsRequest{}
 	userId, err := middleware.CtxUserID(c)
+	terms := c.Query("terms")
+	termsArray := strings.Split(terms, ",")
 	if err != nil {
 		return helper.HTTPError(c, err, "GetReports.middleware.CtxUserID")
 	}
+	fmt.Println("terms inside reports transport", terms)
+	fmt.Println("termsArray inside reports transport", termsArray)
 	req.UserID = userId
-
+	req.Terms = termsArray
 	resp, err := s.reportsAPI.GetReports(req)
 	if err != nil {
 		return helper.HTTPError(c, err, "GetReports.reportsAPI.GetReports")
@@ -116,3 +122,18 @@ func (s *reportsHttpTransport) UpdateReport(c *fiber.Ctx) error {
 	
 }
 
+func (s *reportsHttpTransport) GetMyReports(c *fiber.Ctx) error {
+	req := &GetReportsRequest{}
+	userId, err := middleware.CtxUserID(c)
+	if err != nil {
+		return helper.HTTPError(c, err, "GetMyReports.middleware.CtxUserID")
+	}
+	req.UserID = userId
+
+	resp, err := s.reportsAPI.GetMyReports(req)
+	if err != nil {
+		return helper.HTTPError(c, err, "GetMyReports.reportsAPI.GetMyReports")
+	}
+
+	return c.JSON(resp)
+}
