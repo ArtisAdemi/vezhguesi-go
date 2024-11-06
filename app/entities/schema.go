@@ -10,7 +10,7 @@ type Entity struct {
 	Type           string
 	RelatedTopics  string            `gorm:"type:json"` // Serialize to JSON
 	SentimentLabel string
-	SentimentScores string           `gorm:"type:json"` // Serialize to JSON
+	SentimentScore float32
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }

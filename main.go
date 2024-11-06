@@ -7,6 +7,7 @@ import (
 
 	articles "vezhguesi/app/articles"
 	entitysvc "vezhguesi/app/entities"
+	entity_reportsvc "vezhguesi/app/entity_reports"
 	orgsvc "vezhguesi/app/orgs"
 	reportsvc "vezhguesi/app/reports"
 	subscriptionsvc "vezhguesi/app/subscriptions"
@@ -134,6 +135,9 @@ func main() {
 		&subscriptionsvc.Subscription{},
 		&subscriptionsvc.Feature{},
 		&articles.Article{},
+		&entity_reportsvc.EntityReport{},
+		&entity_reportsvc.EntityReportArticle{},
+		&entity_reportsvc.UserEntityReport{},
 	)
 
 	dbseeds.SeedDefaultRolesAndPermissions(db)
