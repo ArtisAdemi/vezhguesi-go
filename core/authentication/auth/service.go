@@ -6,7 +6,7 @@ import (
 	"time"
 	session "vezhguesi/core/authentication"
 	"vezhguesi/core/users"
-	"vezhguesi/helper"
+	helper "vezhguesi/helper"
 
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/golang-jwt/jwt/v4"

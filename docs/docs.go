@@ -980,7 +980,13 @@ const docTemplate = `{
                         "$ref": "#/definitions/reports.Analysis"
                     }
                 },
+                "average_sentiment": {
+                    "type": "number"
+                },
                 "entity_name": {
+                    "type": "string"
+                },
+                "sentiment_label": {
                     "type": "string"
                 },
                 "total_articles": {

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	subscriptionsvc "vezhguesi/app/subscriptions"
-	"vezhguesi/helper"
+	helper "vezhguesi/helper"
 
 	"github.com/gofiber/fiber/v2/log"
 	"gorm.io/gorm"

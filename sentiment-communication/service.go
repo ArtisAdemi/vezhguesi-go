@@ -203,7 +203,7 @@ func (s *serverApi) GetAnalyzes(req []string) (res *GetAnalyzesResponse, err err
 						Name:           entity.Name,
 						RelatedTopics:  marshalToJson(entity.RelatedTopics),
 						SentimentLabel: entity.SentimentLabel,
-						SentimentScores: marshalToJson(entity.SentimentScores),
+						SentimentScore: entity.SentimentScore,
 					}
 					if err := s.db.Create(&newEntity).Error; err != nil {
 						return nil, fmt.Errorf("failed to create entity: %v", err)
@@ -214,16 +214,16 @@ func (s *serverApi) GetAnalyzes(req []string) (res *GetAnalyzesResponse, err err
 			}
 		}
 
-		url := articleData.URL
-		var existingUrl articlesvc.URL
-		if err := s.db.Where("path = ?", url).First(&existingUrl).Error; err != nil {
-				if err == gorm.ErrRecordNotFound {
-					newUrl := articlesvc.URL{Path: url}
-					if err := s.db.Create(&newUrl).Error; err != nil {
-					return nil, fmt.Errorf("failed to create URL: %v", err)
-				}
-			}
-		}
+		// url := articleData.URL
+		// var existingUrl articlesvc.URL
+		// if err := s.db.Where("path = ?", url).First(&existingUrl).Error; err != nil {
+		// 		if err == gorm.ErrRecordNotFound {
+		// 			newUrl := articlesvc.URL{Path: url}
+		// 			if err := s.db.Create(&newUrl).Error; err != nil {
+		// 			return nil, fmt.Errorf("failed to create URL: %v", err)
+		// 		}
+		// 	}
+		// }
 	}
 
 	return &response, nil
