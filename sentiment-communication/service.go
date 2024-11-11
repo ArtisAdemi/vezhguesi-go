@@ -7,12 +7,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
+	analysesvc "vezhguesi/app/analyses"
 	articlesvc "vezhguesi/app/articles"
 	entitiesvc "vezhguesi/app/entities"
 
 	"github.com/gofiber/fiber/v2/log"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -25,6 +28,7 @@ type ServerAPI interface {
 	FetchArticles() ([]articlesvc.Article, error)
 	AnalyzeArticles(articleIds *[]int) (res *AnalyzeArticlesResponse, err error)
 	GetAnalyzes(req []string) (res *GetAnalyzesResponse, err error)
+	FetchAndStoreArticles() error
 }
 
 func NewServerAPI(db *gorm.DB, logger log.AllLogger) ServerAPI {
@@ -105,9 +109,34 @@ func (s *serverApi) FetchArticles() ([]articlesvc.Article, error) {
 }
 
 func (s *serverApi) AnalyzeArticles(articleIds *[]int) (res *AnalyzeArticlesResponse, err error) {
-	// Create a map to hold the JSON payload
+	// Check which articles we already have analyses for
+	var existingAnalyses []analysesvc.Analysis
+	var uncachedArticleIds []int
+	
+	if err := s.db.Where("article_id = ANY(?)", pq.Array(*articleIds)).Find(&existingAnalyses).Error; err != nil {
+		return nil, fmt.Errorf("failed to query existing analyses: %v", err)
+	}
+
+	// Collect IDs that need analysis
+	existingMap := make(map[int]bool)
+	for _, analysis := range existingAnalyses {
+		existingMap[analysis.ArticleID] = true
+	}
+
+	for _, id := range *articleIds {
+		if !existingMap[id] {
+			uncachedArticleIds = append(uncachedArticleIds, id)
+		}
+	}
+
+	// If all articles are cached, return cached results
+	if len(uncachedArticleIds) == 0 {
+		return s.buildAnalysisResponse(existingAnalyses), nil
+	}
+
+	// Request analysis only for uncached articles
 	payload := map[string]interface{}{
-		"article_id": articleIds,
+		"article_id": uncachedArticleIds,
 	}
 
 	// Convert the payload to JSON
@@ -134,7 +163,6 @@ func (s *serverApi) AnalyzeArticles(articleIds *[]int) (res *AnalyzeArticlesResp
 	}
 	defer resp.Body.Close()
 
-
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to analyze articles: status code %d", resp.StatusCode)
 	}
@@ -146,7 +174,54 @@ func (s *serverApi) AnalyzeArticles(articleIds *[]int) (res *AnalyzeArticlesResp
 		return nil, fmt.Errorf("failed to decode analyzed articles data: %v", err)
 	}
 
+	// Store new analyses in database
+	for _, result := range response.Results {
+		entitiesJSON, _ := json.Marshal(result.Entities)
+		topicsJSON, _ := json.Marshal(result.Topics)
+
+		analysis := analysesvc.Analysis{
+			ArticleID:      result.ArticleID,
+			ArticleSummary: result.ArticleSummary,
+			Entities:      string(entitiesJSON),
+			Topics:        string(topicsJSON),
+		}
+
+		if err := s.db.Create(&analysis).Error; err != nil {
+			s.logger.Errorf("Failed to cache analysis: %v", err)
+			// Continue even if caching fails
+		}
+	}
+
 	return &response, nil
+}
+
+func (s *serverApi) buildAnalysisResponse(analyses []analysesvc.Analysis) *AnalyzeArticlesResponse {
+	results := make([]ArticleData, len(analyses))
+	for i, analysis := range analyses {
+		var entities map[string]Entity
+		var topics map[string]Topic
+		json.Unmarshal([]byte(analysis.Entities), &entities)
+		json.Unmarshal([]byte(analysis.Topics), &topics)
+
+		results[i] = ArticleData{
+			ArticleID:      analysis.ArticleID,
+			ArticleSummary: analysis.ArticleSummary,
+			Entities:      entities,
+			Topics:        topics,
+		}
+	}
+
+	return &AnalyzeArticlesResponse{
+		Status: "completed",
+		Summary: Summary{
+			TotalRequested:     len(analyses),
+			RetrievedFromCache: len(analyses),
+			NewlyAnalyzed:      0,
+			Successful:         len(analyses),
+			Failed:            0,
+		},
+		Results: results,
+	}
 }
 
 func (s *serverApi) GetAnalyzes(req []string) (res *GetAnalyzesResponse, err error) {
@@ -236,4 +311,97 @@ func marshalToJson(data interface{}) string {
 		return "[]"
 	}
 	return string(jsonData)
+}
+
+func (s *serverApi) FetchAndStoreArticles() error {
+	// Fetch articles from external service
+	resp, err := http.Get(fmt.Sprintf("%s:%s/articles", os.Getenv("SERVER_URL"), os.Getenv("SERVER_ARTICLES_PORT")))
+	if err != nil {
+		return fmt.Errorf("failed to fetch articles: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var articles []Articles
+	if err := json.NewDecoder(resp.Body).Decode(&articles); err != nil {
+		return fmt.Errorf("failed to decode articles: %v", err)
+	}
+
+	// Begin transaction
+	tx := s.db.Begin()
+
+	// Get all existing entities for matching
+	var entities []entitiesvc.Entity
+	if err := tx.Find(&entities).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to fetch entities: %v", err)
+	}
+
+	for _, article := range articles {
+		// First, handle the URL
+		var url URL
+		if err := tx.Where("path = ?", article.URL).First(&url).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				url = URL{Path: article.URL}
+				if err := tx.Create(&url).Error; err != nil {
+					tx.Rollback()
+					return fmt.Errorf("failed to create URL: %v", err)
+				}
+			} else {
+				tx.Rollback()
+				return fmt.Errorf("failed to query URL: %v", err)
+			}
+		}
+
+		// Parse dates
+		publishedDate, err := time.Parse("2006-01-02T15:04:05.999999", article.PublishedDate)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to parse published date: %v", err)
+		}
+		scrapedAt, err := time.Parse("2006-01-02T15:04:05.999999", article.ScrapedAt)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to parse scraped at date: %v", err)
+		}
+
+		dbArticle := articlesvc.Article{
+			ID:            article.ID,
+			ConfigID:      article.ConfigID,
+			URLID:         url.ID,
+			Title:         article.Title,
+			Content:       article.Content,
+			PublishedDate: publishedDate,
+			ScrapedAt:     scrapedAt,
+		}
+
+		// Upsert article
+		if err := tx.Save(&dbArticle).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to save article: %v", err)
+		}
+
+		// Check content for entity mentions
+		articleContent := strings.ToLower(article.Content)
+		articleTitle := strings.ToLower(article.Title)
+
+		for _, entity := range entities {
+			entityName := strings.ToLower(entity.Name)
+			// Check if entity is mentioned in title or content
+			if strings.Contains(articleContent, entityName) || strings.Contains(articleTitle, entityName) {
+				relation := articlesvc.ArticleEntity{
+					ArticleID:  article.ID,
+					EntityName: entity.Name,
+					// Default neutral sentiment until analyzed
+					SentimentScore: 0,
+					SentimentLabel: "neutral",
+				}
+				if err := tx.Save(&relation).Error; err != nil {
+					tx.Rollback()
+					return fmt.Errorf("failed to save entity relation: %v", err)
+				}
+			}
+		}
+	}
+
+	return tx.Commit().Error
 }

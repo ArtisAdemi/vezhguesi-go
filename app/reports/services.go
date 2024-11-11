@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	articlesvc "vezhguesi/app/articles"
 	"vezhguesi/app/entities"
 	entity_reportsvc "vezhguesi/app/entity_reports"
 	"vezhguesi/helper"
@@ -51,73 +52,109 @@ func NewReportsAPI(db *gorm.DB, mailDialer *gomail.Dialer, uiAppUrl string, logg
 // @Success			200					{object}	ReportResponse
 // @Router			/api/reports/	[POST]
 func (s *reportsApi) Create(req *CreateReportRequest) (res *ReportResponse, err error) {
-	if req.UserID == 0 {
-		return nil, fmt.Errorf("user id is required")
-	}
-
-	if req.Subject == "" {
-		return nil, fmt.Errorf("subject is required")
-	}
-
-	if req.StartDate.IsZero() {
-		return nil, fmt.Errorf("start date is required")
-	}
-
-	if req.EndDate.IsZero() {
-		return nil, fmt.Errorf("end date is required")
+	if err := s.validateCreateRequest(req); err != nil {
+		return nil, err
 	}
 
 	subjectList := strings.Split(req.Subject, ",")
 
-	report := &Report{
-		Subject: req.Subject,
-		UserID: req.UserID,
-		StartDate: req.StartDate,
-		EndDate: req.EndDate,
-	}
+	// First try with article_entities join
+	var articles []articlesvc.Article
+	err = s.db.
+		Joins("JOIN article_entities ON articles.id = article_entities.article_id").
+		Where("article_entities.entity_name IN ?", subjectList).
+		Preload("EntityRelations").
+		Preload("URL").
+		Find(&articles).Error
 
-	articles, err := s.sentiment.FetchArticles()
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch articles: %v", err)
-	}
+	// If no articles found or there's an error about missing table, try content search
+	if err != nil || len(articles) == 0 {
+		// Query all articles and filter by content
+		err = s.db.
+			Preload("URL").
+			Find(&articles).Error
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch articles: %v", err)
+		}
 
-	var articlesList []Articles
-	for _, article := range articles {
-		for _, subject := range subjectList {
-			if strings.Contains(article.Content, subject) {
-				articlesList = append(articlesList, Articles{
-					ID: article.ID,
-					Title: article.Title,
-					Content: article.Content,
-				})
+		// Filter articles that contain any of the subjects
+		var filteredArticles []articlesvc.Article
+		for _, article := range articles {
+			content := strings.ToLower(article.Content)
+			title := strings.ToLower(article.Title)
+			
+			for _, subject := range subjectList {
+				subject = strings.ToLower(strings.TrimSpace(subject))
+				if strings.Contains(content, subject) || strings.Contains(title, subject) {
+					// Create article-entity relation on the fly
+					relation := articlesvc.ArticleEntity{
+						ArticleID:      article.ID,
+						EntityName:     subject,
+						SentimentScore: 0,
+						SentimentLabel: "neutral",
+					}
+					
+					// Save the relation
+					if err := s.db.Save(&relation).Error; err != nil {
+						s.logger.Errorf("Failed to save article-entity relation: %v", err)
+					}
+					
+					// Add to filtered articles if not already added
+					if !containsArticle(filteredArticles, article) {
+						filteredArticles = append(filteredArticles, article)
+					}
+					break
+				}
 			}
 		}
+		articles = filteredArticles
 	}
 
-	var articleIds []int
-	for _, article := range articlesList {
-		articleIds = append(articleIds, article.ID)
+	report := &Report{
+		Subject:    req.Subject,
+		UserID:     req.UserID,
+		StartDate:  req.StartDate,
+		EndDate:    req.EndDate,
 	}
 
-	_, err = s.sentiment.AnalyzeArticles(&articleIds)
-	if err != nil {
-		return nil, fmt.Errorf("failed to analyze articles: %v", err)
+	// Create the report
+	if err := s.db.Create(&report).Error; err != nil {
+		return nil, fmt.Errorf("failed to create report: %v", err)
 	}
 
-	result := s.db.Create(&report)
-	if result.Error != nil {
-		return nil, result.Error
+	// Convert to response format
+	var articlesList []Articles
+	for _, article := range articles {
+		articlesList = append(articlesList, Articles{
+			ID:      article.ID,
+			Title:   article.Title,
+			Content: article.Content,
+		})
 	}
-
 
 	resp := &ReportResponse{
-		Report: *report,
+		Report:   *report,
 		Articles: articlesList,
 	}
 
 	return resp, nil
 }
 
+func (s *reportsApi) validateCreateRequest(req *CreateReportRequest) error {
+	if req.UserID == 0 {
+		return fmt.Errorf("user id is required")
+	}
+	if req.Subject == "" {
+		return fmt.Errorf("subject is required")
+	}
+	if req.StartDate.IsZero() {
+		return fmt.Errorf("start date is required")
+	}
+	if req.EndDate.IsZero() {
+		return fmt.Errorf("end date is required")
+	}
+	return nil
+}
 
 // @Summary      	Get Reports
 // @Description	Validates user id. Gets all reports
@@ -321,7 +358,9 @@ func (s *reportsApi) GetMyReports(req *GetReportsRequest) (res *GetMyReportsResp
 	}
 
 	var reports []Report
-	result := s.db.Where("user_id = ?", req.UserID).Find(&reports)
+	result := s.db.Where("user_id = ?", req.UserID).
+		Order("id DESC").
+		Find(&reports)
 	if result.Error != nil {
 		return nil, fmt.Errorf("error fetching reports: %v", result.Error)
 	}
@@ -412,6 +451,11 @@ func (s *reportsApi) GetMyReports(req *GetReportsRequest) (res *GetMyReportsResp
 		entitiesReportsResponse = append(entitiesReportsResponse, entityReportResponse)
 	}
 
+	// Sort entities by ID in descending order
+	sort.Slice(entitiesReportsResponse, func(i, j int) bool {
+		return entitiesReportsResponse[i].ArticleCount > entitiesReportsResponse[j].ArticleCount
+	})
+
 	return &GetMyReportsResponse{
 		Entities: entitiesReportsResponse,
 	}, nil
@@ -489,17 +533,6 @@ func createAnalysisFromArticle(article server.ArticleData) Analysis {
 				URLID: article.URLID,
 				URL:   article.URL,
 		},
-	}
-}
-
-func getSentimentLabel(score float32) string {
-	switch {
-	case score > 0:
-		return "Positive"
-	case score < 0:
-		return "Negative"
-	default:
-		return "Neutral"
 	}
 }
 
@@ -612,18 +645,22 @@ func (s *reportsApi) GenerateEntityReport(articles []server.ArticleData, entityN
 
 // Helper function to generate summary using OpenAI
 func (s *reportsApi) generateOpenAISummary(summaries []string, entityName string) (string, error) {
-    prompt := fmt.Sprintf(`Based on these %d article summaries about %s, create a comprehensive report:
+    prompt := fmt.Sprintf(`Bazuar në këto %d përmbledhje artikujsh për %s, krijoni një raport të shkurtër dhe të qartë.
 
-    Article Summaries:
+    Përmbledhjet e artikujve:
     %s
 
-    Please provide a concise summary that covers:
-    1. Key events and developments
-    2. Overall sentiment and public perception
-    3. Main relationships and interactions
-    4. Notable trends or patterns
+    Krijoni një raport me pikat e mëposhtme, duke përdorur tekst të thjeshtë dhe pika të shkurtra:
 
-    Format the response as a clear, professional summary.`, 
+    Filloni me "Raport i Përmbledhur për [entity]" si titull.
+    Pastaj përfshini këto seksione në rend:
+
+    - Ngjarjet kryesore dhe zhvillimet
+    - Perceptimi i përgjithshëm dhe opinioni publik
+    - Marrëdhëniet kryesore dhe ndërveprimet
+    - Trendet ose modelet e dukshme
+
+    E rëndësishme: Përdorni pika të shkurtra dhe mos përdorni asnjë formatim të veçantë.`, 
     len(summaries), entityName, strings.Join(summaries, "\n\n"))
 
     client := openai.NewClient(os.Getenv("OPENAI_API_KEY"))
@@ -637,7 +674,7 @@ func (s *reportsApi) generateOpenAISummary(summaries []string, entityName string
                     Content: prompt,
                 },
             },
-            MaxTokens:   1000,
+            MaxTokens:   500,  // Reduce max tokens to keep it concise
             Temperature: 0.2,
         },
     )
@@ -650,7 +687,20 @@ func (s *reportsApi) generateOpenAISummary(summaries []string, entityName string
         return "", fmt.Errorf("no response generated from OpenAI")
     }
 
-    return resp.Choices[0].Message.Content, nil
+    // Clean up the response
+    summary := resp.Choices[0].Message.Content
+
+    // Replace bullet points with new lines
+    summary = strings.ReplaceAll(summary, "- ", "\n- ")
+
+    // Remove any existing newlines and replace them with spaces
+    summary = strings.ReplaceAll(summary, "\\n", " ")
+    summary = strings.ReplaceAll(summary, "\n", " ")
+
+    // Remove multiple spaces
+    summary = strings.Join(strings.Fields(summary), " ")
+
+    return summary, nil
 }
 
 // Helper function to associate report with user
@@ -669,4 +719,14 @@ func (s *reportsApi) associateReportWithUser(reportID uint, userID int) error {
     }
 
     return err
+}
+
+// Helper function to check if an article is already in the slice
+func containsArticle(articles []articlesvc.Article, article articlesvc.Article) bool {
+	for _, a := range articles {
+		if a.ID == article.ID {
+			return true
+		}
+	}
+	return false
 }

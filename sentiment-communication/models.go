@@ -24,9 +24,10 @@ type Articles struct {
 // 	'errors': errors
 
 type AnalyzeArticlesResponse struct {
-	Status  string   `json:"status"`
-	Summary Summary  `json:"summary"`
-	Errors  []string `json:"errors"`
+	Status  string        `json:"status"`
+	Summary Summary       `json:"summary"`
+	Errors  []string      `json:"errors"`
+	Results []ArticleData `json:"results"`
 }
 
 type Summary struct {
