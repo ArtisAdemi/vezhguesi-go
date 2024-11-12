@@ -98,6 +98,7 @@ type EntityReport struct {
     SentimentLabel string `json:"sentiment_label"`
     TimeRange string `json:"time_range"`
 	Articles []string `json:"articles"`
+	RelatedEntities []Entity `json:"related_entities"`
 }
 
 

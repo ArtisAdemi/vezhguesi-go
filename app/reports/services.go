@@ -58,56 +58,37 @@ func (s *reportsApi) Create(req *CreateReportRequest) (res *ReportResponse, err 
 
 	subjectList := strings.Split(req.Subject, ",")
 
-	// First try with article_entities join
+	// First try with article_entities join from local database
 	var articles []articlesvc.Article
 	err = s.db.
 		Joins("JOIN article_entities ON articles.id = article_entities.article_id").
 		Where("article_entities.entity_name IN ?", subjectList).
 		Preload("EntityRelations").
-		Preload("URL").
 		Find(&articles).Error
 
-	// If no articles found or there's an error about missing table, try content search
+	// If no articles found in local DB, try fetching from server
 	if err != nil || len(articles) == 0 {
-		// Query all articles and filter by content
-		err = s.db.
-			Preload("URL").
-			Find(&articles).Error
+		serverArticles, err := s.sentiment.FetchArticlesByEntity(subjectList)
 		if err != nil {
-			return nil, fmt.Errorf("failed to fetch articles: %v", err)
+			return nil, fmt.Errorf("failed to fetch articles by entity: %v", err)
 		}
+		articles = serverArticles
 
-		// Filter articles that contain any of the subjects
-		var filteredArticles []articlesvc.Article
+		// Create entity relations for the newly fetched articles
 		for _, article := range articles {
-			content := strings.ToLower(article.Content)
-			title := strings.ToLower(article.Title)
-			
 			for _, subject := range subjectList {
-				subject = strings.ToLower(strings.TrimSpace(subject))
-				if strings.Contains(content, subject) || strings.Contains(title, subject) {
-					// Create article-entity relation on the fly
-					relation := articlesvc.ArticleEntity{
-						ArticleID:      article.ID,
-						EntityName:     subject,
-						SentimentScore: 0,
-						SentimentLabel: "neutral",
-					}
-					
-					// Save the relation
-					if err := s.db.Save(&relation).Error; err != nil {
-						s.logger.Errorf("Failed to save article-entity relation: %v", err)
-					}
-					
-					// Add to filtered articles if not already added
-					if !containsArticle(filteredArticles, article) {
-						filteredArticles = append(filteredArticles, article)
-					}
-					break
+				relation := articlesvc.ArticleEntity{
+					ArticleID:      article.ID,
+					EntityName:     subject,
+					SentimentScore: 0,
+					SentimentLabel: "neutral",
+				}
+				
+				if err := s.db.Save(&relation).Error; err != nil {
+					s.logger.Errorf("Failed to save article-entity relation: %v", err)
 				}
 			}
 		}
-		articles = filteredArticles
 	}
 
 	report := &Report{
@@ -117,7 +98,6 @@ func (s *reportsApi) Create(req *CreateReportRequest) (res *ReportResponse, err 
 		EndDate:    req.EndDate,
 	}
 
-	// Create the report
 	if err := s.db.Create(&report).Error; err != nil {
 		return nil, fmt.Errorf("failed to create report: %v", err)
 	}
@@ -380,34 +360,59 @@ func (s *reportsApi) GetMyReports(req *GetReportsRequest) (res *GetMyReportsResp
 		return nil, fmt.Errorf("failed to fetch analyzed reports: %v", err)
 	}
 
+	// Create a map of entities from reports for quick lookup
+	requestedEntities := make(map[string]bool)
+	for _, report := range reports {
+		entities := strings.Split(report.Subject, ",")
+		for _, entity := range entities {
+			entityName := strings.TrimSpace(entity)
+			requestedEntities[strings.ToLower(entityName)] = true
+		}
+	}
+
 	// Group analyses by entity and track sentiment scores
 	entityMap := make(map[string]*EntityAnalysis)
 	entitySentiments := make(map[string][]float32)
 	
-	// Store all articles for later summary generation
+	// Track related entities for each main entity
+	relatedEntitiesMap := make(map[string][]Entity)
+	
 	articles := response.Results.Articles
 	
-	var articlesList []string
 	for _, article := range articles {
 		analysis := createAnalysisFromArticle(article)
 
+		// First, process requested entities
 		for entityName, entity := range article.Entities {
-			articlesList = append(articlesList, article.URL)
+			isRequestedEntity := requestedEntities[strings.ToLower(entityName)]
 			
-			if _, exists := entityMap[entityName]; !exists {
-				entityMap[entityName] = &EntityAnalysis{
+			if isRequestedEntity {
+				// Process main entity
+				if _, exists := entityMap[entityName]; !exists {
+					entityMap[entityName] = &EntityAnalysis{
 						EntityName: entityName,
 						Analyses:   []Analysis{},
+					}
+					entitySentiments[entityName] = []float32{}
 				}
-				entitySentiments[entityName] = []float32{}
+				
+				entityMap[entityName].Analyses = append(entityMap[entityName].Analyses, analysis)
+				entitySentiments[entityName] = append(entitySentiments[entityName], entity.SentimentScore)
+				
+				// Collect related entities for this main entity
+				for relatedName, relatedEntity := range article.Entities {
+					if strings.ToLower(relatedName) != strings.ToLower(entityName) {
+						relatedEntitiesMap[entityName] = append(relatedEntitiesMap[entityName], Entity{
+							Name:           relatedName,
+							RelatedTopics:  relatedEntity.RelatedTopics,
+							SentimentLabel: relatedEntity.SentimentLabel,
+							SentimentScore: relatedEntity.SentimentScore,
+						})
+					}
+				}
 			}
-			entityMap[entityName].Analyses = append(entityMap[entityName].Analyses, analysis)
-			
-			// Use the sentiment score directly from the entity
-			entitySentiments[entityName] = append(entitySentiments[entityName], entity.SentimentScore)
 		}
 	}
-
 
 	var entitiesReportsResponse []EntityReport
 
@@ -440,12 +445,13 @@ func (s *reportsApi) GetMyReports(req *GetReportsRequest) (res *GetMyReportsResp
 		}
 
 		entityReportResponse := EntityReport{
-			EntityName:       entityName,
-			Summary:         entityReport.Summary,
-			ArticleCount:    entityReport.ArticleCount,
+			EntityName:        entityName,
+			Summary:          entityReport.Summary,
+			ArticleCount:     entityReport.ArticleCount,
 			AverageSentiment: float32(math.Round(float64(avgSentiment)*100) / 100),
 			SentimentLabel:   helper.GetSentimentLabel(avgSentiment),
-			Articles:		articlesList,
+			Articles:         articlesList,
+			RelatedEntities:  uniqueRelatedEntities(relatedEntitiesMap[entityName]), // Add related entities
 		}
 		
 		entitiesReportsResponse = append(entitiesReportsResponse, entityReportResponse)
@@ -729,4 +735,19 @@ func containsArticle(articles []articlesvc.Article, article articlesvc.Article) 
 		}
 	}
 	return false
+}
+
+// Helper function to remove duplicate related entities
+func uniqueRelatedEntities(entities []Entity) []Entity {
+	seen := make(map[string]bool)
+	unique := []Entity{}
+	
+	for _, entity := range entities {
+		if !seen[strings.ToLower(entity.Name)] {
+			seen[strings.ToLower(entity.Name)] = true
+			unique = append(unique, entity)
+		}
+	}
+	
+	return unique
 }

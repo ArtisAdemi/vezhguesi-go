@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -29,6 +30,7 @@ type ServerAPI interface {
 	AnalyzeArticles(articleIds *[]int) (res *AnalyzeArticlesResponse, err error)
 	GetAnalyzes(req []string) (res *GetAnalyzesResponse, err error)
 	FetchAndStoreArticles() error
+	FetchArticlesByEntity(entityName []string) ([]articlesvc.Article, error)
 }
 
 func NewServerAPI(db *gorm.DB, logger log.AllLogger) ServerAPI {
@@ -288,17 +290,6 @@ func (s *serverApi) GetAnalyzes(req []string) (res *GetAnalyzesResponse, err err
 				}
 			}
 		}
-
-		// url := articleData.URL
-		// var existingUrl articlesvc.URL
-		// if err := s.db.Where("path = ?", url).First(&existingUrl).Error; err != nil {
-		// 		if err == gorm.ErrRecordNotFound {
-		// 			newUrl := articlesvc.URL{Path: url}
-		// 			if err := s.db.Create(&newUrl).Error; err != nil {
-		// 			return nil, fmt.Errorf("failed to create URL: %v", err)
-		// 		}
-		// 	}
-		// }
 	}
 
 	return &response, nil
@@ -311,6 +302,93 @@ func marshalToJson(data interface{}) string {
 		return "[]"
 	}
 	return string(jsonData)
+}
+
+func (s *serverApi) FetchArticlesByEntity(entityNames []string) ([]articlesvc.Article, error) {
+	// Parse the base URL
+	u, err := url.Parse(fmt.Sprintf("%s:%s/articles/search", os.Getenv("SERVER_URL"), os.Getenv("SERVER_ARTICLES_PORT")))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL: %v", err)
+	}
+
+	// Add query parameters
+	query := u.Query()
+	for _, name := range entityNames {
+		query.Add("search", strings.TrimSpace(name))
+	}
+	u.RawQuery = query.Encode()
+
+	// Log the request URL for debugging
+	s.logger.Infof("Fetching articles from: %s", u.String())
+
+	// Make the request
+	resp, err := http.Get(u.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch articles: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			s.logger.Errorf("Failed to read error response body: %v", err)
+			return nil, fmt.Errorf("Server error response: %s", string(bodyBytes))
+		}
+		return nil, fmt.Errorf("Server error response: %s", string(bodyBytes))
+	}
+
+	// Decode response
+	var articles []Articles
+	if err := json.NewDecoder(resp.Body).Decode(&articles); err != nil {
+		return nil, fmt.Errorf("failed to decode articles: %v", err)
+	}
+
+	// Convert to articlesvc.Article format
+	var result []articlesvc.Article
+	for _, article := range articles {
+		// Parse dates
+		publishedDate, err := time.Parse("2006-01-02T15:04:05.999999", article.PublishedDate)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse published date: %v", err)
+		}
+		scrapedAt, err := time.Parse("2006-01-02T15:04:05.999999", article.ScrapedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse scraped at date: %v", err)
+		}
+
+		// Handle URL
+		var url URL
+		if err := s.db.Where("path = ?", article.URL).First(&url).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				url = URL{Path: article.URL}
+				if err := s.db.Create(&url).Error; err != nil {
+					return nil, fmt.Errorf("failed to create URL: %v", err)
+				}
+			} else {
+				return nil, fmt.Errorf("failed to query URL: %v", err)
+			}
+		}
+
+		// Create article
+		newArticle := articlesvc.Article{
+			ID:            article.ID,
+			ConfigID:      article.ConfigID,
+			URLID:         url.ID,
+			Title:         article.Title,
+			Content:       article.Content,
+			PublishedDate: publishedDate,
+			ScrapedAt:     scrapedAt,
+		}
+
+		// Save article if it doesn't exist
+		if err := s.db.Where("id = ?", article.ID).FirstOrCreate(&newArticle).Error; err != nil {
+			return nil, fmt.Errorf("failed to save article: %v", err)
+		}
+
+		result = append(result, newArticle)
+	}
+
+	return result, nil
 }
 
 func (s *serverApi) FetchAndStoreArticles() error {
