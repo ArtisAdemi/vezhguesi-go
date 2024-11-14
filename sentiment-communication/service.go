@@ -227,31 +227,32 @@ func (s *serverApi) buildAnalysisResponse(analyses []analysesvc.Analysis) *Analy
 }
 
 func (s *serverApi) GetAnalyzes(req []string) (res *GetAnalyzesResponse, err error) {
-	baseUrl := fmt.Sprintf("%s:%s/search", os.Getenv("SERVER_URL"), os.Getenv("SERVER_ANALYSIS_PORT"))
+	// Log the request
+	s.logger.Infof("GetAnalyzes called with terms: %v", req)
 
-	// Create a URL object
+	baseUrl := fmt.Sprintf("%s:%s/search", os.Getenv("SERVER_URL"), os.Getenv("SERVER_ANALYSIS_PORT"))
+	s.logger.Infof("Using base URL: %s", baseUrl)
+
 	u, err := url.Parse(baseUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse base URL: %v", err)
 	}
 
-	// Add query parameters
 	query := u.Query()
 	for _, item := range req {
-		query.Add("terms[]", item) // Use "terms[]" as the parameter name
+		query.Add("terms[]", strings.TrimSpace(item))
 	}
 	u.RawQuery = query.Encode()
 
-	// Create a new HTTP request
+	s.logger.Infof("Making request to: %s", u.String())
+
 	request, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
 
-	// Set the X-API-Key header
 	request.Header.Set("X-API-Key", os.Getenv("SERVER_API_KEY"))
 
-	// Send the request
 	client := &http.Client{}
 	resp, err := client.Do(request)
 	if err != nil {
@@ -259,38 +260,22 @@ func (s *serverApi) GetAnalyzes(req []string) (res *GetAnalyzesResponse, err err
 	}
 	defer resp.Body.Close()
 
+	// Log the response status
+	s.logger.Infof("Got response with status: %d", resp.StatusCode)
+
 	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		s.logger.Errorf("Error response body: %s", string(bodyBytes))
 		return nil, fmt.Errorf("failed to get analyzes: status code %d", resp.StatusCode)
 	}
 
-	// Decode the JSON response into the GetAnalyzesResponse struct
 	var response GetAnalyzesResponse
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to decode analyzed articles data: %v", err)
 	}
 
-	// Check and save entities in the database
-	for _, articleData := range response.Results.Articles {
-		for _, entity := range articleData.Entities {
-			var existingEntity entitiesvc.Entity
-			if err := s.db.Where("name = ?", entity.Name).First(&existingEntity).Error; err != nil {
-				if err == gorm.ErrRecordNotFound {
-					// Entity does not exist, create it
-					newEntity := entitiesvc.Entity{
-						Name:           entity.Name,
-						RelatedTopics:  marshalToJson(entity.RelatedTopics),
-						SentimentLabel: entity.SentimentLabel,
-						SentimentScore: entity.SentimentScore,
-					}
-					if err := s.db.Create(&newEntity).Error; err != nil {
-						return nil, fmt.Errorf("failed to create entity: %v", err)
-					}
-				} else {
-					return nil, fmt.Errorf("failed to query entity: %v", err)
-				}
-			}
-		}
-	}
+	// Log the response data
+	s.logger.Infof("Got response with %d articles", len(response.Results.Articles))
 
 	return &response, nil
 }

@@ -67,6 +67,7 @@ type ArticleData struct {
 
 type Entity struct {
 	Name           string   `json:"name"`
+	Type           string   `json:"type"`
 	RelatedTopics  []string `json:"related_topics"`
 	SentimentLabel string   `json:"sentiment_label"`
 	SentimentScore float32  `json:"sentiment_score"`

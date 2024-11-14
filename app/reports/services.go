@@ -333,9 +333,8 @@ func (s *reportsApi) UpdateReport(req *UpdateReportRequest) (res *ReportResponse
 // @Success			200					{object}	GetMyReportsResponse
 // @Router			/api/reports/my-reports	[GET]
 func (s *reportsApi) GetMyReports(req *GetReportsRequest) (res *GetMyReportsResponse, err error) {
-	if req.UserID == 0 {
-		return nil, fmt.Errorf("user id is required")
-	}
+	// Log the request
+	s.logger.Infof("Getting reports for user ID: %d", req.UserID)
 
 	var reports []Report
 	result := s.db.Where("user_id = ?", req.UserID).
@@ -345,8 +344,10 @@ func (s *reportsApi) GetMyReports(req *GetReportsRequest) (res *GetMyReportsResp
 		return nil, fmt.Errorf("error fetching reports: %v", result.Error)
 	}
 
-	if len(reports) == 0 {
-		return nil, fmt.Errorf("no reports found")
+	// Log the found reports
+	s.logger.Infof("Found %d reports", len(reports))
+	for _, r := range reports {
+		s.logger.Infof("Report subject: %s", r.Subject)
 	}
 
 	var terms []string
@@ -354,70 +355,122 @@ func (s *reportsApi) GetMyReports(req *GetReportsRequest) (res *GetMyReportsResp
 		terms = append(terms, report.Subject)
 	}
 
+	// Log the terms we're searching for
+	s.logger.Infof("Searching for terms: %v", terms)
 
 	response, err := s.sentiment.GetAnalyzes(terms)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch analyzed reports: %v", err)
 	}
 
+	// Log the analysis response
+	s.logger.Infof("Got analysis response with %d articles", len(response.Results.Articles))
+
 	// Create a map of entities from reports for quick lookup
 	requestedEntities := make(map[string]bool)
+	var requestedEntityNames []string
 	for _, report := range reports {
 		entities := strings.Split(report.Subject, ",")
 		for _, entity := range entities {
 			entityName := strings.TrimSpace(entity)
+			s.logger.Infof("Processing requested entity: %s", entityName)
 			requestedEntities[strings.ToLower(entityName)] = true
+			requestedEntityNames = append(requestedEntityNames, entityName)
 		}
 	}
 
 	// Group analyses by entity and track sentiment scores
 	entityMap := make(map[string]*EntityAnalysis)
 	entitySentiments := make(map[string][]float32)
-	
-	// Track related entities for each main entity
-	relatedEntitiesMap := make(map[string][]Entity)
+	relatedEntitiesMap := make(map[string]map[string]Entity)
 	
 	articles := response.Results.Articles
 	
+	// Track the full names of entities
+	entityFullNames := make(map[string]string)
+	
 	for _, article := range articles {
+		
 		analysis := createAnalysisFromArticle(article)
 
-		// First, process requested entities
 		for entityName, entity := range article.Entities {
-			isRequestedEntity := requestedEntities[strings.ToLower(entityName)]
+			s.logger.Infof("Checking entity: %s", entityName)
+			
+			// Check if this entity matches any of the requested entities
+			var matchedRequestedEntity string
+			isRequestedEntity := false
+			
+			for _, requestedName := range requestedEntityNames {
+				if isSameEntity(requestedName, entityName) {
+					isRequestedEntity = true
+					matchedRequestedEntity = requestedName
+					
+					// Initialize related entities map if not exists
+					if _, exists := relatedEntitiesMap[matchedRequestedEntity]; !exists {
+						relatedEntitiesMap[matchedRequestedEntity] = make(map[string]Entity)
+					}
+					
+					// Collect all other entities as related
+					for otherName, otherEntity := range article.Entities {
+						if otherName != entityName {
+							relatedEntitiesMap[matchedRequestedEntity][otherName] = Entity{
+								Name: otherName,
+								Type: otherEntity.Type, // Add type if available
+							}
+						}
+					}
+					break
+				}
+			}
 			
 			if isRequestedEntity {
-				// Process main entity
-				if _, exists := entityMap[entityName]; !exists {
-					entityMap[entityName] = &EntityAnalysis{
-						EntityName: entityName,
+				// Use the original entityName instead of matchedRequestedEntity as the key
+				if _, exists := entityMap[matchedRequestedEntity]; !exists {
+					entityMap[matchedRequestedEntity] = &EntityAnalysis{
+						EntityName: matchedRequestedEntity, // Use the original matched name
 						Analyses:   []Analysis{},
 					}
-					entitySentiments[entityName] = []float32{}
+					entitySentiments[matchedRequestedEntity] = []float32{}
 				}
 				
-				entityMap[entityName].Analyses = append(entityMap[entityName].Analyses, analysis)
-				entitySentiments[entityName] = append(entitySentiments[entityName], entity.SentimentScore)
-				
-				// Collect related entities for this main entity
-				for relatedName, relatedEntity := range article.Entities {
-					if strings.ToLower(relatedName) != strings.ToLower(entityName) {
-						relatedEntitiesMap[entityName] = append(relatedEntitiesMap[entityName], Entity{
-							Name:           relatedName,
-							RelatedTopics:  relatedEntity.RelatedTopics,
-							SentimentLabel: relatedEntity.SentimentLabel,
-							SentimentScore: relatedEntity.SentimentScore,
-						})
-					}
-				}
+				entityMap[matchedRequestedEntity].Analyses = append(entityMap[matchedRequestedEntity].Analyses, analysis)
+				entitySentiments[matchedRequestedEntity] = append(entitySentiments[matchedRequestedEntity], entity.SentimentScore)
 			}
 		}
 	}
 
+	// Log the results before returning
+	s.logger.Infof("Found %d matching entities", len(entityMap))
+	for entityName := range entityMap {
+		s.logger.Infof("Matched entity: %s", entityName)
+	}
+
 	var entitiesReportsResponse []EntityReport
 
-	// Convert map to slice, calculate averages, and generate summaries
-	for entityName, entityAnalysis := range entityMap {
+	// Before processing entities, ensure they exist in the database
+	for _, fullName := range entityFullNames {
+		var existingEntity entities.Entity
+		if err := s.db.Where("name = ?", fullName).First(&existingEntity).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				// Create the entity if it doesn't exist
+				newEntity := entities.CreateEntityRequest{
+					Name: fullName,
+					Type: "PERSON", // or appropriate type
+				}
+				_, err = s.entitiesApi.Create(&newEntity)
+				if err != nil {
+					s.logger.Errorf("Failed to create entity %s: %v", fullName, err)
+					continue
+				}
+			} else {
+				s.logger.Errorf("Error checking entity %s: %v", fullName, err)
+				continue
+			}
+		}
+	}
+
+	// Now process the entities as before
+	for entityKey, entityAnalysis := range entityMap {
 		// Calculate sentiment metrics
 		entityAnalysis.TotalArticles = len(entityAnalysis.Analyses)
 
@@ -428,7 +481,7 @@ func (s *reportsApi) GetMyReports(req *GetReportsRequest) (res *GetMyReportsResp
 		
 		// Calculate average sentiment using the pre-collected sentiment scores
 		var avgSentiment float32
-		scores := entitySentiments[entityName]
+		scores := entitySentiments[entityKey]
 		if len(scores) > 0 {
 			var sum float32
 			for _, score := range scores {
@@ -438,20 +491,20 @@ func (s *reportsApi) GetMyReports(req *GetReportsRequest) (res *GetMyReportsResp
 		}
 
 		// Generate entity summary
-		entityReport, err := s.GenerateEntityReport(articles, entityName, req.UserID)
+		entityReport, err := s.GenerateEntityReport(articles, entityKey, req.UserID)
 		if err != nil {
-			s.logger.Errorf("Failed to generate summary for entity %s: %v", entityName, err)
+			s.logger.Errorf("Failed to generate summary for entity %s: %v", entityKey, err)
 			continue
 		}
 
 		entityReportResponse := EntityReport{
-			EntityName:        entityName,
+			EntityName:        entityKey, // Use entityKey directly instead of entityFullNames[entityKey]
 			Summary:          entityReport.Summary,
 			ArticleCount:     entityReport.ArticleCount,
 			AverageSentiment: float32(math.Round(float64(avgSentiment)*100) / 100),
 			SentimentLabel:   helper.GetSentimentLabel(avgSentiment),
 			Articles:         articlesList,
-			RelatedEntities:  uniqueRelatedEntities(relatedEntitiesMap[entityName]), // Add related entities
+			RelatedEntities:  mapToSlice(relatedEntitiesMap[entityKey]),
 		}
 		
 		entitiesReportsResponse = append(entitiesReportsResponse, entityReportResponse)
@@ -543,9 +596,9 @@ func createAnalysisFromArticle(article server.ArticleData) Analysis {
 }
 
 func (s *reportsApi) GenerateEntityReport(articles []server.ArticleData, entityName string, userID int) (*EntityReport, error) {
-    // First, get the entity ID
+    // Get the full entity name from database
     var entity entities.Entity
-    if err := s.db.Where("name = ?", entityName).First(&entity).Error; err != nil {
+    if err := s.db.Where("name ILIKE ?", "%"+entityName+"%").First(&entity).Error; err != nil {
         return nil, fmt.Errorf("entity not found: %v", err)
     }
 
@@ -575,7 +628,7 @@ func (s *reportsApi) GenerateEntityReport(articles []server.ArticleData, entityN
         s.associateReportWithUser(existingReport.ID, userID)
 
         return &EntityReport{
-            EntityName:    entityName,
+            EntityName:    entity.Name,
             Summary:       existingReport.Summary,
             ArticleCount:  existingReport.ArticleCount,
             Articles:      relevantArticles,
@@ -585,7 +638,7 @@ func (s *reportsApi) GenerateEntityReport(articles []server.ArticleData, entityN
     // If we're here, we need to generate a new report
     var summaries []string
     for _, article := range articles {
-        if _, exists := article.Entities[entityName]; exists {
+        if _, exists := article.Entities[entity.Name]; exists {
             if article.ArticleSummary != "" {
                 summaries = append(summaries, article.ArticleSummary)
             }
@@ -593,11 +646,11 @@ func (s *reportsApi) GenerateEntityReport(articles []server.ArticleData, entityN
     }
 
     if len(summaries) == 0 {
-        return nil, fmt.Errorf("no summaries found for entity %s", entityName)
+        return nil, fmt.Errorf("no summaries found for entity %s", entity.Name)
     }
 
     // Generate new summary using OpenAI
-    summary, err := s.generateOpenAISummary(summaries, entityName)
+    summary, err := s.generateOpenAISummary(summaries, entity.Name)
     if err != nil {
         return nil, err
     }
@@ -642,7 +695,7 @@ func (s *reportsApi) GenerateEntityReport(articles []server.ArticleData, entityN
     }
 
     return &EntityReport{
-        EntityName:    entityName,
+        EntityName:    entity.Name,
         Summary:       summary,
         ArticleCount:  len(summaries),
         Articles:      relevantArticles,
@@ -750,4 +803,20 @@ func uniqueRelatedEntities(entities []Entity) []Entity {
 	}
 	
 	return unique
+}
+
+// Helper function to check if two entity names refer to the same entity
+func isSameEntity(reportEntity, articleEntity string) bool {
+    reportEntity = strings.ToLower(strings.TrimSpace(reportEntity))
+    articleEntity = strings.ToLower(strings.TrimSpace(articleEntity))
+    return strings.Contains(articleEntity, reportEntity) || strings.Contains(reportEntity, articleEntity)
+}
+
+// Add this helper function
+func mapToSlice(entityMap map[string]Entity) []Entity {
+    entities := make([]Entity, 0, len(entityMap))
+    for _, entity := range entityMap {
+        entities = append(entities, entity)
+    }
+    return entities
 }
