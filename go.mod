@@ -8,6 +8,8 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/google/uuid v1.5.0
 	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.10.9
+	github.com/sashabaranov/go-openai v1.32.5
 	github.com/sirupsen/logrus v1.9.3
 	github.com/swaggo/swag v1.16.3
 	golang.org/x/crypto v0.28.0
@@ -31,13 +33,11 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.0 // indirect
-	github.com/lib/pq v1.10.9 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/sashabaranov/go-openai v1.32.5 // indirect
 	github.com/swaggo/files/v2 v2.0.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.51.0 // indirect
