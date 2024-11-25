@@ -105,11 +105,14 @@ func (s *reportsApi) Create(req *CreateReportRequest) (res *ReportResponse, err 
 	// Convert to response format
 	var articlesList []Articles
 	for _, article := range articles {
-		articlesList = append(articlesList, Articles{
-			ID:      article.ID,
-			Title:   article.Title,
-			Content: article.Content,
-		})
+		s.logger.Infof("[Create] Article published date: %v , article id: %v", article.PublishedDate, article.ID)
+		if !article.PublishedDate.Before(req.StartDate) && !article.PublishedDate.After(req.EndDate) {
+			articlesList = append(articlesList, Articles{
+				ID:      article.ID,
+				Title:   article.Title,
+				Content: article.Content,
+			})
+		}
 	}
 
 	resp := &ReportResponse{
